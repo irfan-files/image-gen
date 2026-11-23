@@ -9,6 +9,8 @@ from pathlib import Path
 import numpy as np
 from PIL import Image
 
+from hardware import configure_torch_logging
+
 
 def _build_rrdbnet(num_blocks: int):
     import torch
@@ -75,6 +77,7 @@ def _build_rrdbnet(num_blocks: int):
 
 def load_realesrgan(model_name: str = "realesrnet_x4plus"):
     """Load official Real-ESRGAN weights into a local RRDBNet implementation."""
+    configure_torch_logging()
     try:
         import torch
     except ImportError as exc:

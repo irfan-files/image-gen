@@ -44,6 +44,25 @@ def test_optional_model_presets_use_correct_pipelines_and_licenses():
     assert MODEL_OPTIONS["z-image-turbo"].recommended_steps == 9
 
 
+def test_diffusers_load_uses_current_dtype_argument(monkeypatch):
+    import diffusers
+    import torch
+
+    class FakePipeline:
+        @classmethod
+        def from_pretrained(cls, *_args, **kwargs):
+            cls.kwargs = kwargs
+            return cls()
+
+    monkeypatch.setattr(diffusers, "StableDiffusionPipeline", FakePipeline)
+    adapter = DiffusersAdapter(MODEL_OPTIONS["sd15"].model_id, "cpu", "models")
+
+    adapter.load()
+
+    assert FakePipeline.kwargs["dtype"] == torch.float32
+    assert "torch_dtype" not in FakePipeline.kwargs
+
+
 def test_flux_adapter_forwards_flux_sequence_limit_and_model_default_guidance():
     adapter = DiffusersAdapter(
         MODEL_OPTIONS["flux-dev"].model_id, "cpu", "models", model_key="flux-dev"

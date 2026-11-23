@@ -1,9 +1,11 @@
+import logging
 from pathlib import Path
 
 import yaml
 from PIL import Image
 
 from generator import deterministic_sku, load_themes
+from hardware import _TorchRedirectNoteFilter, _TORCH_REDIRECT_LOGGER, _TORCH_REDIRECT_NOTE
 from prompt_builder import build_prompt
 from quality_control import analyze_image, phash, hamming
 from metadata import write_export_csv
@@ -60,3 +62,18 @@ def test_csv_export(tmp_path):
     path = tmp_path / "catalog.csv"
     write_export_csv(path, [{"SKU": "TEST", "Filename": "test.png"}])
     assert path.exists()
+
+
+def test_torch_redirect_filter_suppresses_only_expected_platform_note():
+    note = logging.LogRecord(_TORCH_REDIRECT_LOGGER, logging.WARNING, "", 0, _TORCH_REDIRECT_NOTE, (), None)
+    other_warning = logging.LogRecord(
+        _TORCH_REDIRECT_LOGGER, logging.WARNING, "", 0, "another warning", (), None
+    )
+    warning_from_other_logger = logging.LogRecord(
+        "torch.other", logging.WARNING, "", 0, _TORCH_REDIRECT_NOTE, (), None
+    )
+    filter_ = _TorchRedirectNoteFilter()
+
+    assert not filter_.filter(note)
+    assert filter_.filter(other_warning)
+    assert filter_.filter(warning_from_other_logger)

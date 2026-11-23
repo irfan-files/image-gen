@@ -4,6 +4,7 @@ import gc
 
 from PIL import Image
 
+from hardware import configure_torch_logging
 from model_catalog import MODEL_OPTIONS, get_model_option
 from .base import BaseGenerator
 
@@ -42,6 +43,7 @@ class DiffusersAdapter(BaseGenerator):
         self.pipe = None
 
     def load(self) -> None:
+        configure_torch_logging()
         try:
             import torch
             import diffusers
@@ -82,7 +84,7 @@ class DiffusersAdapter(BaseGenerator):
             self.pipe = pipeline_class.from_pretrained(
                 self.model_id,
                 cache_dir=self.cache_dir,
-                torch_dtype=dtype,
+                dtype=dtype,
                 use_safetensors=True,
             )
         except Exception as exc:
