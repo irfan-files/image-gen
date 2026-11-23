@@ -141,7 +141,7 @@ class SeasonalArtGUI:
 
         self.upscale_var = tk.BooleanVar(value=self.saved_upscale)
         ttk.Checkbutton(
-            settings, text="Real-ESRGAN AI upscale x4 (final master exact-size)",
+            settings, text="Real-ESRGAN x4 AI upscale (requires model weights)",
             variable=self.upscale_var,
         ).grid(row=2, column=4, columnspan=5, sticky="w", padx=(12, 4), pady=8)
 

@@ -31,7 +31,7 @@ Models are loaded one at a time. Diffusers, Transformers, and PyTorch XPU versio
 - `prompt_builder.py`: controlled themed prompt and negative-prompt composition.
 - `generator.py`: queue, reproducible seeds, OOM fallback, atomic PNG writes, metadata and resume behavior.
 - `quality_control.py`: dimensions, mode, integrity, blur, clipping, pHash duplicate detection, contact sheets.
-- `upscale.py`: optional Real-ESRGAN and honest Lanczos fallback.
+- `upscale.py`: tiled PyTorch Real-ESRGAN and explicit Lanczos-only mode.
 - `metadata.py`: atomic JSON, CSV, and Excel exports.
 - `themes.yaml`: 36+ validated themes.
 
@@ -152,16 +152,18 @@ Each job receives a different random seed and prompt variant, producing separate
 # Honest Lanczos fallback / exact-size reframing
 python upscale.py --input output/drafts --width 6000 --height 3000
 
-# Optional Real-ESRGAN (package and official weights must be installed)
-python upscale.py --input output/drafts --width 6000 --height 3000 --use-realesrgan --model realesrnet_x4plus --tile 512 --overlap 32
+# Real-ESRGAN (place the official weights in models/realesrgan)
+python upscale.py --input output/drafts --width 6000 --height 3000 --use-realesrgan --model realesrnet_x4plus --tile 256 --overlap 32
 
 # Large print
 python upscale.py --input output/drafts --width 12000 --height 6000 --use-realesrgan --model realesrnet_x4plus
 ```
 
-Real-ESRGAN `realesrnet_x4plus` is the realistic/photography-oriented model. `realesrgan_x4plus_anime_6B` is the illustration-oriented option; test it against painterly artwork. The app refuses to claim a missing Real-ESRGAN package or model is available.
+Real-ESRGAN inference is implemented with PyTorch, so the `realesrgan` and `basicsr` Python packages are not required. Download the official weights from the [Real-ESRGAN releases](https://github.com/xinntao/Real-ESRGAN/releases) and place `RealESRGAN_x4plus.pth` or `RealESRGAN_x4plus_anime_6B.pth` in `models/realesrgan`. Missing weights or inference errors are reported instead of silently saving a blurry Lanczos-only image when AI upscaling is enabled. The anime checkpoint is intended for anime/illustration and should be tested against painterly art.
 
-Windows NCNN/Vulkan and macOS implementations vary. Verify binaries and GPU support for the exact OS/driver before production use.
+Real-ESRGAN x4 creates plausible high-frequency detail; it cannot recover exact details that were never present in the low-resolution source. Prefer the largest stable native generation resolution, review the output at print size, and do not treat 6000×3000 dimensions alone as proof of print quality.
+
+The upscaler uses XPU when available and tiles work to limit GPU memory; otherwise it selects CUDA, MPS, or CPU.
 
 ## Print sizing
 

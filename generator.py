@@ -135,34 +135,34 @@ class Generator:
         tmp_source.replace(source)
 
         print_path = sku_dir / f"print_{width}x{height}.png"
-        tmp_print = print_path.with_suffix(".png.tmp")
-        if (image.width, image.height) != (width, height):
-            ratio = max(width / image.width, height / image.height)
-            resized = image.resize((round(image.width * ratio), round(image.height * ratio)), Image.Resampling.LANCZOS)
-            left = (resized.width-width)//2; top = (resized.height-height)//2
-            resized = resized.crop((left, top, left+width, top+height))
-        else:
-            resized = image.convert("RGB")
-        resized.convert("RGB").save(tmp_print, format="PNG", dpi=(150, 150))
-        tmp_print.replace(print_path)
-
-        upscale_method = "Lanczos reframing"
+        upscale_method = "Lanczos resize only (AI upscaling disabled)"
         if ai_upscale:
             try:
                 from upscale import upscale_one
                 upscale_result = upscale_one(
                     source, print_path, width, height,
-                    model="realesrnet_x4plus", tile=512, overlap=32,
+                    model="realesrnet_x4plus", tile=256, overlap=32,
                     use_realesrgan=True,
                 )
-                upscale_method = "Real-ESRGAN x4plus + Lanczos exact-size crop"
+                upscale_method = f"{upscale_result['method']} + exact-size Lanczos framing"
             except Exception as exc:
-                upscale_method = f"Lanczos fallback: {type(exc).__name__}"
+                raise GenerationError(
+                    f"AI upscaling failed for {sku}; no low-resolution print master was saved: {exc}"
+                ) from exc
+        else:
+            from upscale import cover_resize
+
+            resized = cover_resize(image, width, height)
+            tmp_print = print_path.with_suffix(".png.tmp")
+            resized.save(tmp_print, format="PNG", dpi=(150, 150))
+            tmp_print.replace(print_path)
 
         preview = sku_dir / "preview.jpg"
         preview_tmp = preview.with_suffix(".jpg.tmp")
-        resized.thumbnail((1280, 1280), Image.Resampling.LANCZOS)
-        resized.convert("RGB").save(preview_tmp, format="JPEG", quality=92, dpi=(150, 150), optimize=True)
+        with Image.open(print_path) as print_image:
+            preview_image = print_image.convert("RGB")
+        preview_image.thumbnail((1280, 1280), Image.Resampling.LANCZOS)
+        preview_image.save(preview_tmp, format="JPEG", quality=92, dpi=(150, 150), optimize=True)
         preview_tmp.replace(preview)
 
         qc = analyze_image(print_path, width, height)

@@ -6,43 +6,155 @@ import sys
 import time
 from pathlib import Path
 
+import numpy as np
 from PIL import Image
 
 
-def load_realesrgan(model_name: str = "realesr-animevideov2"):
-    """Load an optional RealESRGANer implementation if installed.
+def _build_rrdbnet(num_blocks: int):
+    import torch
+    from torch import nn
+    from torch.nn import functional as functional
 
-    Supports the real-esrgan package when the model .pth files are separately
-    present. No model is downloaded or claimed usable without dependency checks.
-    """
+    class ResidualDenseBlock(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.conv1 = nn.Conv2d(64, 32, 3, 1, 1)
+            self.conv2 = nn.Conv2d(96, 32, 3, 1, 1)
+            self.conv3 = nn.Conv2d(128, 32, 3, 1, 1)
+            self.conv4 = nn.Conv2d(160, 32, 3, 1, 1)
+            self.conv5 = nn.Conv2d(192, 64, 3, 1, 1)
+            self.activation = nn.LeakyReLU(negative_slope=0.2, inplace=True)
+
+        def forward(self, value):
+            first = self.activation(self.conv1(value))
+            second = self.activation(self.conv2(torch.cat((value, first), dim=1)))
+            third = self.activation(self.conv3(torch.cat((value, first, second), dim=1)))
+            fourth = self.activation(
+                self.conv4(torch.cat((value, first, second, third), dim=1))
+            )
+            fifth = self.conv5(torch.cat((value, first, second, third, fourth), dim=1))
+            return value + fifth * 0.2
+
+    class ResidualInResidualDenseBlock(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.rdb1 = ResidualDenseBlock()
+            self.rdb2 = ResidualDenseBlock()
+            self.rdb3 = ResidualDenseBlock()
+
+        def forward(self, value):
+            return value + self.rdb3(self.rdb2(self.rdb1(value))) * 0.2
+
+    class RRDBNet(nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.conv_first = nn.Conv2d(3, 64, 3, 1, 1)
+            self.body = nn.Sequential(
+                *(ResidualInResidualDenseBlock() for _ in range(num_blocks))
+            )
+            self.conv_body = nn.Conv2d(64, 64, 3, 1, 1)
+            self.conv_up1 = nn.Conv2d(64, 64, 3, 1, 1)
+            self.conv_up2 = nn.Conv2d(64, 64, 3, 1, 1)
+            self.conv_hr = nn.Conv2d(64, 64, 3, 1, 1)
+            self.conv_last = nn.Conv2d(64, 3, 3, 1, 1)
+            self.activation = nn.LeakyReLU(negative_slope=0.2, inplace=True)
+
+        def forward(self, value):
+            features = self.conv_first(value)
+            features = features + self.conv_body(self.body(features))
+            features = self.activation(
+                self.conv_up1(functional.interpolate(features, scale_factor=2, mode="nearest"))
+            )
+            features = self.activation(
+                self.conv_up2(functional.interpolate(features, scale_factor=2, mode="nearest"))
+            )
+            return self.conv_last(self.activation(self.conv_hr(features)))
+
+    return RRDBNet()
+
+
+def load_realesrgan(model_name: str = "realesrnet_x4plus"):
+    """Load official Real-ESRGAN weights into a local RRDBNet implementation."""
     try:
-        from realesrgan import RealESRGANer
-        from basicsr.archs.rrdbnet_arch import RRDBNet
-        model_dir = Path(__file__).resolve().parent / "models" / "realesrgan"
-        if model_name == "realesrnet_x4plus":
-            model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64,
-                            num_block=23, num_grow_ch=32, scale=4)
-            model_path = model_dir / "RealESRGAN_x4plus.pth"
-            netscale = 4
-        elif model_name == "realesrgan_x4plus_anime_6B":
-            model = RRDBNet(num_in_ch=3, num_out_ch=3, num_feat=64,
-                            num_block=6, num_grow_ch=32, scale=4)
-            model_path = model_dir / "RealESRGAN_x4plus_anime_6B.pth"
-            netscale = 4
-        else:
-            raise RuntimeError("Choose realesrnet_x4plus or realesrgan_x4plus_anime_6B")
-        if not model_path.exists():
-            raise RuntimeError(f"Missing official Real-ESRGAN weight: {model_path}")
         import torch
-        if hasattr(torch, "xpu") and torch.xpu.is_available():
-            device = torch.device("xpu")
-        else:
-            device = torch.device("cpu")
-        return RealESRGANer(scale=netscale, model_path=str(model_path), model=model,
-                            tile=0, tile_pad=10, pre_pad=10,
-                            half=(device.type != "cpu"), device=device)
     except ImportError as exc:
-        raise RuntimeError("Install 'realesrgan basicsr' and obtain the matching official model file") from exc
+        raise RuntimeError("Install PyTorch to enable Real-ESRGAN upscaling.") from exc
+
+    model_config = {
+        "realesrnet_x4plus": ("RealESRGAN_x4plus.pth", 23),
+        "realesrgan_x4plus_anime_6B": ("RealESRGAN_x4plus_anime_6B.pth", 6),
+    }
+    if model_name not in model_config:
+        raise ValueError(f"Unsupported Real-ESRGAN model: {model_name}")
+    filename, block_count = model_config[model_name]
+    model_path = Path(__file__).resolve().parent / "models" / "realesrgan" / filename
+    if not model_path.exists():
+        raise RuntimeError(
+            f"Missing Real-ESRGAN weights: {model_path}. Download the official "
+            f"{filename} file into models/realesrgan."
+        )
+
+    checkpoint = torch.load(model_path, map_location="cpu", weights_only=True)
+    state_dict = checkpoint.get("params_ema", checkpoint.get("params", checkpoint))
+    model = _build_rrdbnet(block_count)
+    model.load_state_dict(state_dict, strict=True)
+
+    if hasattr(torch, "xpu") and torch.xpu.is_available():
+        device = torch.device("xpu")
+    elif torch.cuda.is_available():
+        device = torch.device("cuda")
+    elif hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+        device = torch.device("mps")
+    else:
+        device = torch.device("cpu")
+
+    dtype = torch.float16 if device.type in {"xpu", "cuda"} else torch.float32
+    model = model.to(device=device, dtype=dtype).eval()
+    return model, device, dtype
+
+
+def _run_realesrgan(image: Image.Image, model_name: str, tile: int, overlap: int) -> Image.Image:
+    import torch
+
+    model, device, dtype = load_realesrgan(model_name)
+    rgb = np.asarray(image.convert("RGB"), dtype=np.float32).copy() / 255.0
+    input_tensor = torch.from_numpy(rgb).permute(2, 0, 1).unsqueeze(0)
+    input_tensor = input_tensor.to(device=device, dtype=dtype)
+    height, width = rgb.shape[:2]
+    output = np.empty((height * 4, width * 4, 3), dtype=np.uint8)
+    tile = max(1, tile)
+    overlap = max(0, overlap)
+
+    with torch.inference_mode():
+        for top in range(0, height, tile):
+            for left in range(0, width, tile):
+                bottom = min(top + tile, height)
+                right = min(left + tile, width)
+                patch_top = max(0, top - overlap)
+                patch_left = max(0, left - overlap)
+                patch_bottom = min(height, bottom + overlap)
+                patch_right = min(width, right + overlap)
+                prediction = model(
+                    input_tensor[:, :, patch_top:patch_bottom, patch_left:patch_right]
+                )[0].float().clamp_(0, 1)
+                prediction = (
+                    prediction.permute(1, 2, 0).mul(255).round().byte().cpu().numpy()
+                )
+                crop_top = (top - patch_top) * 4
+                crop_left = (left - patch_left) * 4
+                crop_bottom = crop_top + (bottom - top) * 4
+                crop_right = crop_left + (right - left) * 4
+                output[top * 4:bottom * 4, left * 4:right * 4] = prediction[
+                    crop_top:crop_bottom, crop_left:crop_right
+                ]
+
+    del input_tensor, model
+    gc.collect()
+    if device.type == "xpu":
+        torch.xpu.empty_cache()
+    elif device.type == "cuda":
+        torch.cuda.empty_cache()
+    return Image.fromarray(output, mode="RGB")
 
 
 def cover_resize(image: Image.Image, width: int, height: int) -> Image.Image:
@@ -58,16 +170,8 @@ def upscale_one(source: Path, destination: Path, width: int, height: int,
                 use_realesrgan: bool = False) -> dict:
     source_img = Image.open(source).convert("RGB")
     if use_realesrgan:
-        upsampler = load_realesrgan(model)
-        upsampler.tile = tile
-        upsampler.tile_pad = overlap
-        import numpy as np
-        output, _ = upsampler.enhance(np.asarray(source_img), outscale=4)
-        gc.collect()
-        enlarged = Image.fromarray(output, mode="RGB")
+        enlarged = _run_realesrgan(source_img, model, tile, overlap)
     else:
-        # Explicit alternative: bicubic/Lanczos quality-preserving pipeline when
-        # Real-ESRGAN cannot be installed or run, never presented as AI upscaling.
         enlarged = source_img.resize((source_img.width*2, source_img.height*2), Image.Resampling.LANCZOS)
 
     final = cover_resize(enlarged, width, height)
@@ -76,7 +180,7 @@ def upscale_one(source: Path, destination: Path, width: int, height: int,
     final.save(tmp, format="PNG", dpi=(150, 150), optimize=True)
     tmp.replace(destination)
     return {"source": str(source), "destination": str(destination), "width": width,
-            "height": height, "method": "real_esrgan" if use_realesrgan else "lanczos_fallback",
+            "height": height, "method": "Real-ESRGAN x4" if use_realesrgan else "Lanczos",
             "file_size": destination.stat().st_size}
 
 
@@ -87,7 +191,7 @@ def main():
     p.add_argument("--width", type=int, default=6000)
     p.add_argument("--height", type=int, default=3000)
     p.add_argument("--model", choices=["realesrnet_x4plus", "realesrgan_x4plus_anime_6B"], default="realesrnet_x4plus")
-    p.add_argument("--tile", type=int, default=512)
+    p.add_argument("--tile", type=int, default=256)
     p.add_argument("--overlap", type=int, default=32)
     p.add_argument("--use-realesrgan", action="store_true")
     args = p.parse_args()

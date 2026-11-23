@@ -76,7 +76,7 @@ def parse_args():
     p.add_argument("--export-csv", action="store_true")
     p.add_argument("--export-excel", action="store_true")
     p.add_argument("--ai-upscale", action="store_true", default=True,
-                   help="Upscale the print master with Real-ESRGAN when available")
+                   help="Upscale the print master with Real-ESRGAN x4 (requires official weights)")
     p.add_argument("--no-ai-upscale", action="store_false", dest="ai_upscale")
     p.add_argument("--openvino-model")
     return p.parse_args()
