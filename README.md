@@ -1,0 +1,190 @@
+# Seasonal Art Factory
+
+Production-oriented local AI artwork batch generator for Etsy, Shopee, wall art, and aquarium backgrounds.
+
+## Model selection
+
+| Platform | Default | Native resolution | Acceleration | Notes |
+|---|---|---:|---|---|
+| macOS Apple Silicon | `stabilityai/stable-diffusion-xl-base-1.0` | 1536×768 | PyTorch MPS | 32 GB unified memory; try 1536, 1344, 1216, 1024; SDXL license/Rail terms must be reviewed |
+| Windows Intel Arc A530M | `runwayml/stable-diffusion-v1-5` | 512×256 to 768×384 | OpenVINO, verified XPU, or CPU | Recommended starting model for 4 GB VRAM |
+| Optional | `stabilityai/stable-diffusion-xl-base-1.0` | 640×320 on Arc; larger on suitable hardware | Diffusers | Layer-by-layer RAM offload; slower on 4 GB VRAM |
+| Optional | `stabilityai/stable-diffusion-3.5-medium` | 512×256 on Arc | Diffusers `StableDiffusion3Pipeline` | Stability AI Community License; below USD 1M annual revenue commercial use is permitted subject to the license. Review current terms |
+| Optional | `black-forest-labs/FLUX.1-dev` | 512×256 on Arc | Diffusers `FluxPipeline` | Non-commercial license. Do not use for Etsy/Shopee sales without a separate commercial license |
+| Optional | `black-forest-labs/FLUX.1-schnell` | 512×256 on Arc; 4 steps by default | Diffusers `FluxPipeline` | Apache 2.0. Still 12B parameters; RAM offload on a 4 GB GPU is expected to be slow |
+| Optional | `Tongyi-MAI/Z-Image-Turbo` | 512×256 on Arc; 9 steps by default | Diffusers `ZImagePipeline` | Apache 2.0. 6B parameters; model card targets GPUs with about 16 GB VRAM, so 4 GB Arc requires slow RAM offload |
+
+The GUI's model selector starts with SD 1.5. FLUX.1-dev and SD 3.5 Medium display license confirmations before generation. Z-Image-Turbo displays a hardware warning before generation. FLUX.1-dev requires Hugging Face model access approval and a separate commercial license for commercial product sales. The GUI cannot grant either license or access.
+
+On the current Arc A530M setup, SD 1.5 XPU generation was tested. A one-step FLUX.1-dev XPU smoke test also completed at 512×256 after applying a float32 fallback for FLUX positional embeddings, which otherwise request unsupported float64 on this PyTorch XPU device. That single denoising step took about four minutes with sequential CPU/RAM offload and classifier-free guidance, so FLUX is not practical for large batches on this hardware. FLUX.1-dev is a 12B-parameter model and recommends substantially more memory; SD 3.5 Medium also has a significantly larger memory footprint than SD 1.5. The app warns when detected system RAM is below the model's configured recommendation, but offloading cannot guarantee acceptable speed or prevent all out-of-memory errors.
+
+For FLUX.1-dev, a non-empty negative prompt enables true classifier-free guidance with `true_cfg_scale=2.0`; without a negative prompt, that extra guidance is omitted.
+
+FLUX.1-schnell uses guidance scale 0, does not use negative prompts, and limits inference to 1-4 steps (4 by default). Z-Image-Turbo uses guidance scale 0 and 9 steps by default. Both settings follow the respective model cards; you can change the Z-Image-Turbo step count in the GUI or with `--steps`.
+
+Models are loaded one at a time. Diffusers, Transformers, and PyTorch XPU versions must support the selected pipeline. The install requirements need Diffusers 0.43 or newer for Z-Image-Turbo.
+
+## Architecture
+
+- `hardware.py`: CPU/RAM/GPU/backend detection.
+- `model_adapters/`: modular Diffusers, OpenVINO, and future adapters.
+- `prompt_builder.py`: controlled themed prompt and negative-prompt composition.
+- `generator.py`: queue, reproducible seeds, OOM fallback, atomic PNG writes, metadata and resume behavior.
+- `quality_control.py`: dimensions, mode, integrity, blur, clipping, pHash duplicate detection, contact sheets.
+- `upscale.py`: optional Real-ESRGAN and honest Lanczos fallback.
+- `metadata.py`: atomic JSON, CSV, and Excel exports.
+- `themes.yaml`: 36+ validated themes.
+
+## macOS setup
+
+```bash
+cd seasonal-art-factory
+bash install_macos.sh
+source .venv/bin/activate
+huggingface-cli login
+python generate.py --test-one --theme vintage_winter_cabin --device mps
+```
+
+Official model: https://huggingface.co/stabilityai/stable-diffusion-xl-base-1.0  
+License/status: review the model card and CreativeML Open RAIL++-M terms for the exact use case.
+
+For SDXL on MPS, the app starts native at 1536×768 only when width is 6000 or large-print; it retries lower resolutions on memory failure. MPS support varies by PyTorch and macOS versions.
+
+## Windows setup
+
+Recommended install for the tested Intel XPU stack:
+
+```powershell
+cd seasonal-art-factory
+.\install_windows.ps1
+.\.venv\Scripts\Activate.ps1
+.\start_gui.bat
+```
+
+For verified XPU, install a PyTorch build reported compatible with your Intel driver and Arc GPU. The app detects `torch.xpu`; it will not assume CUDA. The implementation has been tested with PyTorch `2.8.0+xpu` on an Intel Arc A530M. The Arc GPU holds 4 GB VRAM; large models use sequential CPU/RAM offload.
+
+For gated model repositories, accept the model terms on Hugging Face and authenticate in the same environment with `hf auth login`. The model adapter reports a specific access error if approval or authentication is missing.
+
+### GUI batch generation
+
+Double-click `start_gui.bat`. It launches the GUI using the project-local `.venv\Scripts\python.exe`, and installs the small GUI YAML dependency into that same environment if it is missing. In the GUI, enter an image count for each theme; rows with a count of zero are skipped. Select a backend, resolution, inference steps, and whether to run Real-ESRGAN, then click **Start generation**.
+
+The GUI saves selected counts and settings in `gui_settings.json`. The generated batch runs sequentially and progress is shown in the GUI. A positive image count is used regardless of the row's checkbox; checkboxes are for bulk-selecting rows before using **Apply count**.
+
+Select one of the model presets at the top of the GUI: SD 1.5 (recommended for the Arc), SDXL, FLUX.1-dev, SD 3.5 Medium, FLUX.1-schnell, or Z-Image-Turbo. Selecting Schnell or Z-Image-Turbo sets the suggested step count (4 or 9); it can be adjusted as appropriate. The CLI equivalent is `--model sd15`, `--model sdxl`, `--model flux-dev`, `--model sd35-medium`, `--model flux-schnell`, or `--model z-image-turbo`.
+
+The error `ModuleNotFoundError: No module named 'yaml'` means PyYAML is absent from the specific Python interpreter used to run the application. Installing PyYAML into a global Python does not install it in `.venv`. Use `start_gui.bat`; for a manual repair, run `.venv\Scripts\python.exe -m pip install PyYAML`.
+
+OpenVINO workflow:
+
+1. Install `openvino`, `optimum-intel`, and Diffusers dependencies.
+2. Export a verified Stable Diffusion 1.5 pipeline with Optimum Intel to a local directory.
+3. Run:
+
+```powershell
+python generate.py --test-one --theme frozen_crystal_cave --device openvino --openvino-model C:\models\sd15-openvino
+```
+
+Official SD1.5 model: https://huggingface.co/runwayml/stable-diffusion-v1-5  
+License/status: review the CreativeML Open RAIL-M model card. Use an export compatible with the installed OpenVINO runtime and GPU drivers.
+
+The OpenVINO adapter validates the exported directory and dependency before loading. It will not claim success if GPU compilation fails.
+
+## Generation examples
+
+```bash
+python generate.py --theme vintage_winter_cabin --count 10 --device auto
+python generate.py --category aquarium --count 50 --width 6000 --height 3000
+python generate.py --theme frozen_crystal_cave --count 5 --print-mode large_print
+python generate.py --input themes.yaml --resume
+python generate.py --theme snowy_pine_forest --count 100 --dry-run
+python generate.py --test-one --theme winter_moonlight_landscape --device mps
+```
+
+## Manual dynamic batch counts
+
+List theme IDs:
+
+```powershell
+python generate.py --list-themes
+```
+
+Choose themes and counts interactively:
+
+```powershell
+python generate.py --interactive --device xpu --width 6000 --height 3000
+```
+
+Generate a fixed count for every selected theme:
+
+```powershell
+python generate.py --count-per-theme 10 --device xpu
+python generate.py --category aquarium --count-per-theme 5 --device xpu
+```
+
+Define different counts in `batch_queue.yaml`:
+
+```yaml
+jobs:
+  - theme: frozen_crystal_cave
+    count: 5
+  - theme: vintage_winter_cabin
+    count: 10
+```
+
+Run the queue:
+
+```powershell
+python generate.py --queue batch_queue.yaml --device xpu --width 6000 --height 3000
+```
+
+The short inline form is also supported:
+
+```powershell
+python generate.py --theme-counts "vintage_winter_cabin:20,frozen_crystal_cave:30,natural_coral_reef:15" --device xpu
+```
+
+Each job receives a different random seed and prompt variant, producing separate candidate SKUs for the same theme.
+
+## Upscaling
+
+```bash
+# Honest Lanczos fallback / exact-size reframing
+python upscale.py --input output/drafts --width 6000 --height 3000
+
+# Optional Real-ESRGAN (package and official weights must be installed)
+python upscale.py --input output/drafts --width 6000 --height 3000 --use-realesrgan --model realesrnet_x4plus --tile 512 --overlap 32
+
+# Large print
+python upscale.py --input output/drafts --width 12000 --height 6000 --use-realesrgan --model realesrnet_x4plus
+```
+
+Real-ESRGAN `realesrnet_x4plus` is the realistic/photography-oriented model. `realesrgan_x4plus_anime_6B` is the illustration-oriented option; test it against painterly artwork. The app refuses to claim a missing Real-ESRGAN package or model is available.
+
+Windows NCNN/Vulkan and macOS implementations vary. Verify binaries and GPU support for the exact OS/driver before production use.
+
+## Print sizing
+
+The default master is exactly 6000×3000 PNG RGB at 150 DPI metadata. At 150 PPI, a 6000×3000 image is 40×20 inches (101.6×50.8 cm). The 12000×6000 large-print master is about 80×40 inches (203.2×101.6 cm). DPI metadata does not add pixels or guarantee print quality.
+
+Print quality depends on native image quality, upscaling, viewing distance, and substrate. AI images require human review for composition and artifacts.
+
+## Quality and human review
+
+QC writes status values: DRAFT, NEEDS_REVIEW, APPROVED, REJECTED, UPSCALED, or EXPORT_READY. Automated checks never certify anatomy, object correctness, or commercial suitability. Individual human review is required.
+
+## Output
+
+Each SKU contains `source.png`, `print_*x*.png`, `preview.jpg`, and `metadata.json`. Catalogue CSV/Excel is generated with `--export-csv` or `--export-excel`.
+
+## Tests
+
+```bash
+pytest -q
+```
+
+Before a 100+ image run, complete `--test-one`, inspect the preview/contact sheet, and verify model/license terms, disk space, output dimensions, and print service requirements.
+
+## Legal and listing notes
+
+This system is a creative assistant, not a publisher. Etsy and Shopee listings must disclose AI assistance where required and must involve meaningful human prompt, editing, and curation. Do not use living artists' names, copyrighted characters, logos, landmarks, or brands. Recheck platform and model terms at listing time.

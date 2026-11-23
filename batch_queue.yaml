@@ -1,0 +1,9 @@
+# Add or remove jobs. One theme may appear only once for a clear count,
+# or repeat it to make separate runs.
+jobs:
+  - theme: frozen_crystal_cave
+    count: 5
+  - theme: vintage_winter_cabin
+    count: 10
+  - theme: natural_coral_reef
+    count: 3

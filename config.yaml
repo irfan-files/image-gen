@@ -1,0 +1,45 @@
+app:
+  name: Seasonal Art Factory
+  output_dir: outputs
+  dpi: 150
+  default_width: 6000
+  default_height: 3000
+  mode: aquarium
+models:
+  macos:
+    id: stabilityai/stable-diffusion-xl-base-1.0
+    license: CreativeML Open RAIL++-M License
+    commercial: "Check repository terms; RAIL license and local/model terms may apply"
+    resolutions: [1536, 1344, 1216, 1024]
+  windows:
+    id: runwayml/stable-diffusion-v1-5
+    license: CreativeML Open RAIL-M License
+    commercial: "Check repository terms; RAIL license and local/model terms may apply"
+  optional:
+    flux_dev:
+      id: black-forest-labs/FLUX.1-dev
+      license: FLUX.1-dev Non-Commercial License
+      commercial: "Not for commercial sales unless a separate commercial license is obtained."
+    sd35_medium:
+      id: stabilityai/stable-diffusion-3.5-medium
+      license: Stability AI Community License
+      commercial: "Commercial use under the community license is allowed below USD 1M annual revenue; verify current terms."
+    flux_schnell:
+      id: black-forest-labs/FLUX.1-schnell
+      license: Apache 2.0
+      commercial: "Released under Apache 2.0; comply with the license and applicable laws."
+      recommended_steps: 4
+    z_image_turbo:
+      id: Tongyi-MAI/Z-Image-Turbo
+      license: Apache 2.0
+      commercial: "Released under Apache 2.0; the model card recommends about 16 GB VRAM."
+      recommended_steps: 9
+print_modes:
+  master: [6000, 3000]
+  large_print: [12000, 6000]
+  etsy_2_3: [4000, 6000]
+  etsy_3_4: [4500, 6000]
+  etsy_4_5: [4800, 6000]
+  frame_tv: [3840, 2160]
+  aquarium_2_1: [6000, 3000]
+  aquarium_3_1: [9000, 3000]
