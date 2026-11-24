@@ -173,11 +173,14 @@ def pixel_art_resize(
     width: int,
     height: int,
     colors: int = 32,
+    grid_height: int | None = None,
 ) -> tuple[Image.Image, int]:
     if width < 1 or height < 1:
         raise ValueError("Pixel-art output dimensions must be positive.")
     if not 2 <= colors <= 256:
         raise ValueError("Pixel-art palette size must be between 2 and 256 colors.")
+    if grid_height is not None and not 1 <= grid_height <= height:
+        raise ValueError("Pixel-art grid height must be between 1 and the output height.")
 
     source = image.convert("RGB")
     target_ratio = width / height
@@ -191,8 +194,11 @@ def pixel_art_resize(
         top = (source.height - crop_height) // 2
         source = source.crop((0, top, source.width, top + crop_height))
 
-    cell_size = min(32, max(8, round(min(width, height) / 100)))
-    grid_size = (max(1, round(width / cell_size)), max(1, round(height / cell_size)))
+    if grid_height is None:
+        cell_size = min(32, max(8, round(min(width, height) / 100)))
+        grid_height = max(1, round(height / cell_size))
+    cell_size = max(1, round(height / grid_height))
+    grid_size = (max(1, round(width * grid_height / height)), grid_height)
     pixel_grid = source.resize(grid_size, Image.Resampling.LANCZOS)
     pixel_grid = pixel_grid.quantize(
         colors=colors,

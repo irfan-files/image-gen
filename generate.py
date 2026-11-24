@@ -231,11 +231,18 @@ def main():
     print(f"Model: {selected_model_id} ({model_option.license_name})")
     print(f"Inference steps: {steps}")
     pixel_themes = [theme for theme, _seed in jobs if theme.get("style_family") == "pixel_art"]
-    if pixel_themes and model_key != "sd15":
+    recommended_pixel_models = {
+        theme.get("recommended_model", "sd15") for theme in pixel_themes
+    }
+    if pixel_themes and recommended_pixel_models != {model_key}:
+        recommended_labels = ", ".join(
+            get_model_option(key).label for key in sorted(recommended_pixel_models)
+        )
         print(
-            "PIXEL-ART MODEL NOTE: SD 1.5 is recommended for the tested Arc A530M; "
-            "the selected model remains in use. Pixel-art masters use palette quantization "
-            "and nearest-neighbor scaling instead of Real-ESRGAN."
+            f"PIXEL-ART MODEL NOTE: selected pixel-art themes recommend {recommended_labels}. "
+            "SD 1.5 is the practical choice for all three tiers on the tested Arc A530M; "
+            "the selected model remains in use. "
+            "The tier is styled by prompts and print processing, not separate model weights."
         )
     if model_option.minimum_ram_gb > info.ram_gb:
         print(

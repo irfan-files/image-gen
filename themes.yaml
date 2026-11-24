@@ -54,7 +54,9 @@ themes:
     commercial_notes: "Original generic pixel-art scene; no game characters or franchise references"
     style_family: pixel_art
     recommended_model: sd15
-    pixel_palette_colors: 24
+    pixel_art_era: 8-bit
+    pixel_grid_height: 48
+    pixel_palette_colors: 16
   - id: pixel_snowy_market_lane
     name: Pixel Art Snowy Christmas Market
     category: christmas_wall_art
@@ -74,7 +76,9 @@ themes:
     commercial_notes: "Fictional marketplace scene; signs contain no readable text"
     style_family: pixel_art
     recommended_model: sd15
-    pixel_palette_colors: 24
+    pixel_art_era: 8-bit
+    pixel_grid_height: 48
+    pixel_palette_colors: 16
   - id: pixel_festive_tree_room
     name: Pixel Art Festive Tree Room
     category: christmas_wall_art
@@ -94,7 +98,9 @@ themes:
     commercial_notes: "Generic holiday decor with original layout and no licensed motifs"
     style_family: pixel_art
     recommended_model: sd15
-    pixel_palette_colors: 24
+    pixel_art_era: 16-bit
+    pixel_grid_height: 96
+    pixel_palette_colors: 32
   - id: pixel_winter_gift_workshop
     name: Pixel Art Winter Gift Workshop
     category: christmas_wall_art
@@ -114,7 +120,9 @@ themes:
     commercial_notes: "Original toy workshop; avoid recognizable characters and branded toys"
     style_family: pixel_art
     recommended_model: sd15
-    pixel_palette_colors: 32
+    pixel_art_era: 32-bit
+    pixel_grid_height: 144
+    pixel_palette_colors: 64
   - id: pixel_new_year_fireworks_lake
     name: Pixel Art New Year Fireworks Lake
     category: new_year_wall_art
@@ -134,6 +142,8 @@ themes:
     commercial_notes: "No readable year or event branding; suitable for evergreen winter display"
     style_family: pixel_art
     recommended_model: sd15
+    pixel_art_era: 16-bit
+    pixel_grid_height: 96
     pixel_palette_colors: 32
   - id: pixel_new_year_first_sunrise
     name: Pixel Art First Sunrise
@@ -154,7 +164,9 @@ themes:
     commercial_notes: "Original seasonal landscape with no location or cultural ceremony claim"
     style_family: pixel_art
     recommended_model: sd15
-    pixel_palette_colors: 20
+    pixel_art_era: 8-bit
+    pixel_grid_height: 48
+    pixel_palette_colors: 16
   - id: pixel_midnight_city_rooftop
     name: Pixel Art Midnight Rooftop
     category: new_year_wall_art
@@ -174,7 +186,9 @@ themes:
     commercial_notes: "Fictional skyline; no recognizable landmark or readable countdown signage"
     style_family: pixel_art
     recommended_model: sd15
-    pixel_palette_colors: 28
+    pixel_art_era: 32-bit
+    pixel_grid_height: 144
+    pixel_palette_colors: 64
   - id: pixel_new_year_countdown_clock
     name: Pixel Art Midnight Clocktower
     category: new_year_wall_art
@@ -194,7 +208,9 @@ themes:
     commercial_notes: "Use simple clock hands without generated lettering or branded event details"
     style_family: pixel_art
     recommended_model: sd15
-    pixel_palette_colors: 24
+    pixel_art_era: 16-bit
+    pixel_grid_height: 96
+    pixel_palette_colors: 32
   - id: pixel_nano_planted_aquarium
     name: Pixel Art Nano Planted Aquarium
     category: aquarium
@@ -214,7 +230,9 @@ themes:
     commercial_notes: "Digital decor graphic only; verify size ratio against the buyer's tank"
     style_family: pixel_art
     recommended_model: sd15
-    pixel_palette_colors: 24
+    pixel_art_era: 16-bit
+    pixel_grid_height: 96
+    pixel_palette_colors: 32
   - id: pixel_tropical_reef_swim_lane
     name: Pixel Art Tropical Reef Swim Lane
     category: aquarium
@@ -234,7 +252,9 @@ themes:
     commercial_notes: "Stylized fantasy marine art, not a species-accurate habitat claim"
     style_family: pixel_art
     recommended_model: sd15
-    pixel_palette_colors: 32
+    pixel_art_era: 32-bit
+    pixel_grid_height: 144
+    pixel_palette_colors: 64
   - id: pixel_moonlit_blackwater_tank
     name: Pixel Art Moonlit Blackwater Tank
     category: aquarium
@@ -254,7 +274,9 @@ themes:
     commercial_notes: "Decorative stylization; do not imply fish-care or habitat advice"
     style_family: pixel_art
     recommended_model: sd15
-    pixel_palette_colors: 20
+    pixel_art_era: 16-bit
+    pixel_grid_height: 96
+    pixel_palette_colors: 32
   - id: pixel_crystal_cave_aquarium
     name: Pixel Art Crystal Cave Aquarium
     category: aquarium
@@ -274,7 +296,9 @@ themes:
     commercial_notes: "Original fantasy scene; aquarium vinyl use requires a separate correctly sized file"
     style_family: pixel_art
     recommended_model: sd15
-    pixel_palette_colors: 24
+    pixel_art_era: 32-bit
+    pixel_grid_height: 144
+    pixel_palette_colors: 64
   - id: pixel_underwater_holiday_lights
     name: Pixel Art Underwater Holiday Lights
     category: aquarium
@@ -294,7 +318,9 @@ themes:
     commercial_notes: "Generic seasonal decor; keep lights as illustration, not electrical or animal-care claims"
     style_family: pixel_art
     recommended_model: sd15
-    pixel_palette_colors: 24
+    pixel_art_era: 8-bit
+    pixel_grid_height: 48
+    pixel_palette_colors: 16
   - id: pixel_midnight_countdown_reef
     name: Pixel Art Midnight Countdown Reef
     category: aquarium
@@ -314,4 +340,6 @@ themes:
     commercial_notes: "Fantasy seasonal decor; no claim that fireworks or lights are safe for live animals"
     style_family: pixel_art
     recommended_model: sd15
-    pixel_palette_colors: 24
+    pixel_art_era: 32-bit
+    pixel_grid_height: 144
+    pixel_palette_colors: 64

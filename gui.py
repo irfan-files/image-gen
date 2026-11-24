@@ -240,9 +240,14 @@ class SeasonalArtGUI:
             self.theme_vars[theme_id] = checked
             self.count_vars[theme_id] = count_var
             count_var.trace_add("write", lambda *_args: self._update_summary())
+            theme_label = f"{theme['name']}  ({theme_id})"
+            if theme.get("style_family") == "pixel_art":
+                tier = theme.get("pixel_art_era", "pixel art")
+                model = theme.get("recommended_model", "sd15").upper()
+                theme_label += f"  — {tier}, {model} recommended"
             ttk.Checkbutton(self.rows_frame, variable=checked).grid(row=row, column=0, padx=8, pady=2)
             ttk.Label(
-                self.rows_frame, text=f"{theme['name']}  ({theme_id})",
+                self.rows_frame, text=theme_label,
             ).grid(row=row, column=1, sticky="w", padx=8, pady=2)
             ttk.Label(self.rows_frame, text=theme.get("category", "")).grid(
                 row=row, column=2, sticky="w", padx=8, pady=2
@@ -346,14 +351,22 @@ class SeasonalArtGUI:
         model_key = MODEL_LABEL_TO_KEY[self.model_var.get()]
         model_option = MODEL_OPTIONS[model_key]
         pixel_themes = [
-            theme_id for theme_id in counts
+            self.themes[theme_id] for theme_id in counts
             if self.themes[theme_id].get("style_family") == "pixel_art"
         ]
-        if pixel_themes and model_key != "sd15":
+        recommended_pixel_models = {
+            theme.get("recommended_model", "sd15") for theme in pixel_themes
+        }
+        if pixel_themes and recommended_pixel_models != {model_key}:
+            recommended_labels = ", ".join(
+                MODEL_OPTIONS[key].label for key in sorted(recommended_pixel_models)
+            )
             if not messagebox.askyesno(
                 "Pixel-art model recommendation",
-                "For pixel-art themes on the tested Intel Arc A530M, SD 1.5 is the recommended "
-                "model because it is lighter and more practical on 4 GB VRAM. "
+                f"The selected pixel-art themes recommend: {recommended_labels}. "
+                "For the tested Intel Arc A530M, SD 1.5 is the practical choice across "
+                "8-bit, 16-bit, and 32-bit styles; each tier is controlled by its prompt "
+                "and crisp print processing. "
                 "The selected model will still be used. Continue?",
             ):
                 return

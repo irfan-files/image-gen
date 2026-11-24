@@ -20,7 +20,7 @@ class ModelOption:
 MODEL_OPTIONS = {
     "sd15": ModelOption(
         key="sd15",
-        label="Stable Diffusion 1.5 (recommended for Arc 4 GB)",
+        label="Stable Diffusion 1.5 (Arc 4 GB + pixel art)",
         model_id="runwayml/stable-diffusion-v1-5",
         pipeline_class="StableDiffusionPipeline",
         license_name="CreativeML Open RAIL-M",

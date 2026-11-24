@@ -24,10 +24,11 @@ TEXTURE_VARIANTS = [
 ]
 
 QUALITY_SUFFIX = "visually coherent, strong depth, no text, no watermark, no logo"
-PIXEL_ART_SUFFIX = (
-    "crisp 16-bit pixel art, square pixel clusters, hard stepped edges, "
-    "limited palette, no antialiasing"
-)
+PIXEL_ART_STYLE_PROMPTS = {
+    "8-bit": "8-bit-inspired pixel art, chunky square pixels, compact palette, hard edges",
+    "16-bit": "16-bit-inspired pixel art, crisp square pixels, balanced palette, hard edges",
+    "32-bit": "32-bit-inspired pixel art, fine square pixels, nuanced palette, hard edges",
+}
 
 
 def build_prompt(theme: dict, extra_prompt: str = "", seed: int | None = None,
@@ -49,8 +50,12 @@ def build_prompt(theme: dict, extra_prompt: str = "", seed: int | None = None,
         aquarium_line = f"{theme.get('composition', composition_variant)}, {composition_variant}"
 
     if pixel_art:
+        pixel_style = PIXEL_ART_STYLE_PROMPTS.get(
+            theme.get("pixel_art_era", "16-bit"),
+            PIXEL_ART_STYLE_PROMPTS["16-bit"],
+        )
         parts = [
-            PIXEL_ART_SUFFIX,
+            pixel_style,
             theme["primary_subject"],
             theme["environment"],
             theme["composition"],

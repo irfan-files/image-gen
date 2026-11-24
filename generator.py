@@ -137,11 +137,14 @@ class Generator:
         print_path = sku_dir / f"print_{width}x{height}.png"
         style_family = theme.get("style_family", "standard")
         pixel_palette_colors = int(theme.get("pixel_palette_colors", 32))
+        pixel_art_era = theme.get("pixel_art_era")
+        pixel_grid_height = theme.get("pixel_grid_height")
         if style_family == "pixel_art":
             from upscale import pixel_art_resize
 
             print_image, pixel_cell_size = pixel_art_resize(
-                image, width, height, colors=pixel_palette_colors
+                image, width, height, colors=pixel_palette_colors,
+                grid_height=int(pixel_grid_height) if pixel_grid_height is not None else None,
             )
             tmp_print = print_path.with_suffix(".png.tmp")
             print_image.save(tmp_print, format="PNG", dpi=(150, 150), optimize=True)
@@ -204,6 +207,8 @@ class Generator:
             "AI upscale method": upscale_method,
             "Print processing method": print_processing_method,
             "Style family": style_family,
+            "Pixel art tier": pixel_art_era if style_family == "pixel_art" else None,
+            "Pixel art grid height": pixel_grid_height if style_family == "pixel_art" else None,
             "Recommended model": theme.get("recommended_model"),
             "Pixel palette colors": pixel_palette_colors if style_family == "pixel_art" else None,
             "Quality status": qc["status"], "Etsy title": etsy_title,

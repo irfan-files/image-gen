@@ -12,7 +12,7 @@ from model_catalog import MODEL_OPTIONS
 from metadata import write_export_csv
 from prompt_builder import build_negative, build_prompt
 from quality_control import analyze_image, phash, hamming
-from upscale import cover_resize
+from upscale import cover_resize, pixel_art_resize
 
 ROOT = Path(__file__).resolve().parents[1]
 
@@ -29,6 +29,19 @@ def test_themes_complete():
     pixel_themes = [theme for theme in themes.values() if theme.get("style_family") == "pixel_art"]
     assert len(pixel_themes) >= 10
     assert all(theme.get("recommended_model") == "sd15" for theme in pixel_themes)
+    assert {theme.get("pixel_art_era") for theme in pixel_themes} == {
+        "8-bit", "16-bit", "32-bit"
+    }
+    tier_settings = {
+        "8-bit": (48, 16),
+        "16-bit": (96, 32),
+        "32-bit": (144, 64),
+    }
+    assert all(
+        (theme.get("pixel_grid_height"), theme.get("pixel_palette_colors"))
+        == tier_settings[theme["pixel_art_era"]]
+        for theme in pixel_themes
+    )
     assert any(theme["category"] == "new_year_wall_art" for theme in pixel_themes)
     assert any(theme["category"] == "aquarium" for theme in pixel_themes)
 
@@ -71,12 +84,25 @@ def test_pixel_art_prompt_uses_style_constraints_and_aquarium_open_center():
     prompt = build_prompt(themes["pixel_nano_planted_aquarium"]).lower()
     negative = build_negative(themes["pixel_nano_planted_aquarium"]).lower()
 
-    assert "pixel art" in prompt
-    assert "square pixel clusters" in prompt
+    assert "16-bit-inspired pixel art" in prompt
+    assert "square pixels" in prompt
     assert "open swimming lane" in prompt
-    assert "no antialiasing" in prompt
     assert "photorealism" in negative
     assert len(prompt.split()) <= 60
+
+
+def test_pixel_art_resize_uses_requested_pixel_grid():
+    image = Image.new("RGB", (32, 16), "navy")
+    image.paste("gold", (16, 0, 32, 16))
+
+    output, cell_size = pixel_art_resize(
+        image, width=160, height=80, colors=4, grid_height=10
+    )
+
+    assert output.size == (160, 80)
+    assert cell_size == 8
+    assert output.getpixel((0, 0)) == output.getpixel((7, 7))
+    assert output.getpixel((0, 0)) != output.getpixel((159, 79))
 
 
 def test_csv_export(tmp_path):
@@ -128,15 +154,18 @@ def test_pixel_art_generation_uses_crisp_print_renderer_not_ai_upscaler(tmp_path
     generator.style_preset = ""
 
     result = generator.generate_one(
-        theme, tmp_path, width=64, height=32, seed=10, ai_upscale=True
+        theme, tmp_path, width=640, height=320, seed=10, ai_upscale=True
     )
 
     sku = tmp_path / result["SKU"]
     metadata = json.loads((sku / "metadata.json").read_text(encoding="utf-8"))
     assert metadata["Style family"] == "pixel_art"
+    assert metadata["Pixel art tier"] == "16-bit"
+    assert metadata["Pixel art grid height"] == 96
+    assert metadata["Recommended model"] == "sd15"
     assert "nearest-neighbor" in metadata["Print processing method"]
     assert metadata["AI upscale method"].startswith("Not used for pixel art")
-    with Image.open(sku / "print_64x32.png") as print_image:
-        assert print_image.size == (64, 32)
+    with Image.open(sku / "print_640x320.png") as print_image:
+        assert print_image.size == (640, 320)
         assert len(print_image.getcolors(maxcolors=257)) <= 32
-        assert print_image.getpixel((0, 0)) == print_image.getpixel((7, 7))
+        assert print_image.getpixel((0, 0)) == print_image.getpixel((2, 2))

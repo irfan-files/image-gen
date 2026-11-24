@@ -7,7 +7,7 @@ Production-oriented local AI artwork batch generator for Etsy, Shopee, wall art,
 | Platform | Default | Native resolution | Acceleration | Notes |
 |---|---|---:|---|---|
 | macOS Apple Silicon | `stabilityai/stable-diffusion-xl-base-1.0` | 1536×768 | PyTorch MPS | 32 GB unified memory; try 1536, 1344, 1216, 1024; SDXL license/Rail terms must be reviewed |
-| Windows Intel Arc A530M | `runwayml/stable-diffusion-v1-5` | 512×256 to 768×384 | OpenVINO, verified XPU, or CPU | Recommended starting model for 4 GB VRAM |
+| Windows Intel Arc A530M | `runwayml/stable-diffusion-v1-5` | 512×256 to 768×384 | OpenVINO, verified XPU, or CPU | Recommended for 4 GB VRAM and all pixel-art tiers (8/16/32-bit style) |
 | Optional | `stabilityai/stable-diffusion-xl-base-1.0` | 640×320 on Arc; larger on suitable hardware | Diffusers | Layer-by-layer RAM offload; slower on 4 GB VRAM |
 | Optional | `stabilityai/stable-diffusion-3.5-medium` | 512×256 on Arc | Diffusers `StableDiffusion3Pipeline` | Stability AI Community License; below USD 1M annual revenue commercial use is permitted subject to the license. Review current terms |
 | Optional | `black-forest-labs/FLUX.1-dev` | 512×256 on Arc | Diffusers `FluxPipeline` | Non-commercial license. Do not use for Etsy/Shopee sales without a separate commercial license |
@@ -31,7 +31,7 @@ Models are loaded one at a time. Diffusers, Transformers, and PyTorch XPU versio
 - `prompt_builder.py`: controlled themed prompt and negative-prompt composition.
 - `generator.py`: queue, reproducible seeds, OOM fallback, atomic PNG writes, metadata and resume behavior.
 - `quality_control.py`: dimensions, mode, integrity, blur, clipping, pHash duplicate detection, contact sheets.
-- `upscale.py`: tiled PyTorch Real-ESRGAN and explicit Lanczos-only mode.
+- `upscale.py`: tiled PyTorch Real-ESRGAN, Lanczos framing, and tier-specific pixel-grid rendering.
 - `metadata.py`: atomic JSON, CSV, and Excel exports.
 - `themes.yaml`: validated Christmas, New Year, winter, and aquarium themes, including 14 pixel-art designs.
 
@@ -75,9 +75,11 @@ Select one of the model presets at the top of the GUI: SD 1.5 (recommended for t
 
 ### Pixel-art collections and product strategy
 
-The theme list includes 14 pixel-art concepts: four Christmas wall prints, four year-neutral New Year scenes, and six aquarium backgrounds. In the GUI, filter by **Christmas wall art**, **New Year wall art**, or **Aquarium**, then enter a separate image count for each theme as usual. The same themes can be selected from the CLI with `--category new_year_wall_art` or `--category aquarium`.
+The theme list includes 14 pixel-art concepts: four Christmas wall prints, four year-neutral New Year scenes, and six aquarium backgrounds, spanning 8-bit, 16-bit, and 32-bit-inspired styles. The GUI labels each pixel theme with its style tier and recommended model. Filter by **Christmas wall art**, **New Year wall art**, or **Aquarium**, then enter a separate image count for each theme as usual. The same themes can be selected from the CLI with `--category new_year_wall_art` or `--category aquarium`.
 
-SD 1.5 is the recommended starting model for these themes on the tested 4 GB Arc A530M; this is a hardware/practicality recommendation, not a claim that it is the only suitable model. Pixel-art prompts request deliberate block shapes and open composition. Pixel-art outputs deliberately bypass Real-ESRGAN: the print master is cropped to the requested aspect ratio, reduced to a coarse grid and limited palette, then enlarged with nearest-neighbor interpolation. This preserves hard pixel edges at sizes such as 6000×3000, but does not create new source detail or make an image suitable for every print size without review. The GUI may still have the AI-upscale option selected; it is intentionally ignored for pixel-art themes.
+**Recommended model for all three tiers: Stable Diffusion 1.5 (`sd15`).** On the tested 4 GB Arc A530M, it is the practical model already validated on XPU; changing from 8-bit to 16-bit or 32-bit art is a style/detail change, not a need for a larger diffusion model. The tier names are artistic presets, not claims of exact console-era emulation or hardware color limits. Prompts, palette size, and pixel-grid density vary by tier: 8-bit-inspired uses 16 colors and a coarse grid, 16-bit-inspired uses 32 colors and a medium grid, and 32-bit-inspired uses 64 colors and a finer grid. For the standard 6000×3000 master, these grids are 96×48, 192×96, and 288×144 cells respectively.
+
+Pixel-art outputs deliberately bypass Real-ESRGAN: the print master is cropped to the requested aspect ratio, reduced to the tier's grid and palette, then enlarged with nearest-neighbor interpolation. This preserves hard pixel edges at sizes such as 6000×3000, but does not create new source detail or make an image suitable for every print size without review. The GUI may still have the AI-upscale option selected; it is intentionally ignored for pixel-art themes. The recommendation is based on the project's tested hardware and current model setup, not a benchmark proving SD 1.5 artistically superior to every model. Larger presets remain selectable, but are less practical on this GPU and are not needed to change the pixel-art tier.
 
 The product concepts are hypotheses, not sales forecasts. Holiday prints are seasonal and should be tested as coordinated bundles and year-neutral designs; aquarium backgrounds are less seasonal and can support evergreen listings, especially when the center remains visually open. Before investing in a large batch, compare marketplace search suggestions and competing listings, test a small set of thumbnails/titles/tags, and track clicks and conversions separately on Etsy and Shopee. No live sales-volume or ranking data was available to validate demand for these specific concepts. Use original generic motifs, check each marketplace's current AI-content and listing rules, and verify any third-party model or LoRA license for commercial use; no pixel-art LoRA is required or bundled by this workflow.
 
