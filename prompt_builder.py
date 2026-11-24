@@ -24,12 +24,17 @@ TEXTURE_VARIANTS = [
 ]
 
 QUALITY_SUFFIX = "visually coherent, strong depth, no text, no watermark, no logo"
+PIXEL_ART_SUFFIX = (
+    "crisp 16-bit pixel art, square pixel clusters, hard stepped edges, "
+    "limited palette, no antialiasing"
+)
 
 
 def build_prompt(theme: dict, extra_prompt: str = "", seed: int | None = None,
                 aquarium_contrast: str = "medium", variant: int = 0) -> str:
     palette = theme.get("palette", "balanced natural colors")
     aquarium = theme.get("category") == "aquarium"
+    pixel_art = theme.get("style_family") == "pixel_art"
     rng = random.Random(seed if seed is not None else variant)
     composition_variant = COMPOSITION_VARIANTS[(variant + rng.randrange(0, len(COMPOSITION_VARIANTS))) % len(COMPOSITION_VARIANTS)]
     palette_variant = PALETTE_VARIANTS[(variant + rng.randrange(0, len(PALETTE_VARIANTS))) % len(PALETTE_VARIANTS)]
@@ -43,25 +48,42 @@ def build_prompt(theme: dict, extra_prompt: str = "", seed: int | None = None,
     else:
         aquarium_line = f"{theme.get('composition', composition_variant)}, {composition_variant}"
 
-    parts = [
-        f"{theme['art_style']} artwork",
-        theme["primary_subject"],
-        theme["environment"],
-        theme["lighting"],
-        f"palette: {palette}, {palette_variant}",
-        aquarium_line,
-        f"perspective: {theme['perspective']}",
-        TEXTURE_VARIANTS[variant % len(TEXTURE_VARIANTS)],
-        extra_prompt.strip(),
-        QUALITY_SUFFIX,
-    ]
+    if pixel_art:
+        parts = [
+            PIXEL_ART_SUFFIX,
+            theme["primary_subject"],
+            theme["environment"],
+            theme["composition"],
+            f"palette: {palette}",
+            extra_prompt.strip(),
+        ]
+    else:
+        parts = [
+            f"{theme['art_style']} artwork",
+            theme["primary_subject"],
+            theme["environment"],
+            theme["lighting"],
+            f"palette: {palette}, {palette_variant}",
+            aquarium_line,
+            f"perspective: {theme['perspective']}",
+            TEXTURE_VARIANTS[variant % len(TEXTURE_VARIANTS)],
+            extra_prompt.strip(),
+            QUALITY_SUFFIX,
+        ]
     prompt = ", ".join(p for p in parts if p)
     return prompt
 
 
 def build_negative(theme: dict, extra_negative: str = "") -> str:
-    return ", ".join(p for p in [theme.get("negative_prompt", ""), extra_negative,
-                                  "blurry, low resolution, jpeg artifacts, oversharpened, bad anatomy, deformed"] if p)
+    quality_negative = (
+        "photorealistic, vector art, smooth gradients, antialiased edges, soft focus, "
+        "blur, text, logo, watermark"
+        if theme.get("style_family") == "pixel_art"
+        else "blurry, low resolution, jpeg artifacts, oversharpened, bad anatomy, deformed"
+    )
+    return ", ".join(
+        p for p in [theme.get("negative_prompt", ""), extra_negative, quality_negative] if p
+    )
 
 
 def prompt_hash(prompt: str) -> str:

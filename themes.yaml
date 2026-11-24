@@ -35,3 +35,283 @@ themes:
   - {id: underwater_waterfall_fantasy, name: Underwater Waterfall Fantasy, category: aquarium, marketplace: [etsy, shopee], primary_subject: "fantasy underwater waterfall", environment: "submerged canyon", art_style: "cinematic fantasy realism", palette: "turquoise, stone gray, moss green", lighting: "volume light rays", perspective: "wide aquarium", composition: "waterfall at side, open central swimming lane", detail_level: high, negative_prompt: "text, logo, impossible gravity, central waterfall, excessive fish", target_buyer: "fantasy aquarium buyers", keywords: [underwater waterfall aquarium], seasonality: evergreen, commercial_notes: "Clearly fantasy artwork"}
   - {id: mystic_underwater_cave, name: Mystic Underwater Cave, category: aquarium, marketplace: [etsy, shopee], primary_subject: "mystic underwater cave", environment: "submerged cavern", art_style: "dark fantasy realism", palette: "sapphire, teal, stone gray", lighting: "mysterious volumetric rays", perspective: "panoramic aquarium", composition: "rocks low sides, open center", detail_level: high, negative_prompt: "text, logo, bright center, too many fish, oversharpening", target_buyer: "premium aquarium decor buyers", keywords: [underwater cave aquarium], seasonality: evergreen, commercial_notes: "Generic cave art"}
   - {id: moonlight_tropical_reef, name: Moonlight Tropical Reef, category: aquarium, marketplace: [etsy, shopee], primary_subject: "moonlit tropical reef", environment: "warm ocean at night", art_style: "cinematic underwater realism", palette: "midnight blue, turquoise, silver", lighting: "moonlight and blue caustics", perspective: "panoramic aquarium", composition: "reef sides, clear central swimming area", detail_level: high, negative_prompt: "text, logo, multiple moons, excessive fish, plastic coral", target_buyer: "marine aquarium owners", keywords: [moonlight reef aquarium], seasonality: evergreen, commercial_notes: "No real camera photograph claim"}
+  - id: pixel_christmas_cabin_window
+    name: Pixel Art Christmas Cabin Window
+    category: christmas_wall_art
+    marketplace: [etsy, shopee]
+    primary_subject: "a tiny snow-covered cabin glowing through frosted windows"
+    environment: "quiet pine forest on Christmas Eve"
+    art_style: "crisp retro pixel-art illustration"
+    palette: "deep pine green, snow white, cranberry red, warm amber"
+    lighting: "soft moonlight and small warm window lights"
+    perspective: "wide 2:1 landscape"
+    composition: "cabin at the left third, layered pines framing a calm open sky"
+    detail_level: medium
+    negative_prompt: "photorealism, smooth gradients, antialiasing, text, logo, watermark, clutter"
+    target_buyer: "retro game fans and cozy holiday decor shoppers"
+    keywords: [pixel art christmas, pixel cabin, retro holiday wall art]
+    seasonality: Christmas
+    commercial_notes: "Original generic pixel-art scene; no game characters or franchise references"
+    style_family: pixel_art
+    recommended_model: sd15
+    pixel_palette_colors: 24
+  - id: pixel_snowy_market_lane
+    name: Pixel Art Snowy Christmas Market
+    category: christmas_wall_art
+    marketplace: [etsy, shopee]
+    primary_subject: "small wooden holiday market stalls with simple evergreen garlands"
+    environment: "fictional snowy village square at blue hour"
+    art_style: "crisp retro pixel-art illustration"
+    palette: "navy, icy blue, evergreen, muted red, lantern gold"
+    lighting: "warm lantern pools against blue winter dusk"
+    perspective: "wide 2:1 street-level scene"
+    composition: "stalls kept to both sides with an uncluttered central walkway"
+    detail_level: medium
+    negative_prompt: "photorealism, smooth gradients, antialiasing, legible signs, text, logos, crowded center"
+    target_buyer: "cozy game-room and seasonal printable buyers"
+    keywords: [pixel art christmas village, pixel market, snowy pixel art]
+    seasonality: Christmas
+    commercial_notes: "Fictional marketplace scene; signs contain no readable text"
+    style_family: pixel_art
+    recommended_model: sd15
+    pixel_palette_colors: 24
+  - id: pixel_festive_tree_room
+    name: Pixel Art Festive Tree Room
+    category: christmas_wall_art
+    marketplace: [etsy, shopee]
+    primary_subject: "a decorated evergreen tree beside a simple fireplace"
+    environment: "warm, tidy winter cottage interior"
+    art_style: "cozy 16-bit pixel-art scene"
+    palette: "forest green, burgundy, cream, walnut, golden light"
+    lighting: "fireplace glow and small candlelight"
+    perspective: "front-facing room vignette"
+    composition: "tree and fireplace balanced with calm wall space and readable silhouettes"
+    detail_level: medium
+    negative_prompt: "photorealism, smooth gradients, antialiasing, excessive ornaments, text, logos, clutter"
+    target_buyer: "retro gaming fans and family holiday decor shoppers"
+    keywords: [pixel christmas tree, pixel art fireplace, retro christmas print]
+    seasonality: Christmas
+    commercial_notes: "Generic holiday decor with original layout and no licensed motifs"
+    style_family: pixel_art
+    recommended_model: sd15
+    pixel_palette_colors: 24
+  - id: pixel_winter_gift_workshop
+    name: Pixel Art Winter Gift Workshop
+    category: christmas_wall_art
+    marketplace: [etsy, shopee]
+    primary_subject: "a cheerful toy-making workshop with wrapped gifts and wooden toys"
+    environment: "small snowy workshop interior"
+    art_style: "hand-crafted 16-bit pixel-art illustration"
+    palette: "warm wood, muted red, spruce green, parchment, amber"
+    lighting: "warm lamps against a cool snowy window"
+    perspective: "wide interior cutaway"
+    composition: "workbench and gifts on the sides, uncluttered center, no characters"
+    detail_level: medium
+    negative_prompt: "photorealism, smooth gradients, antialiasing, text, labels, logos, crowded composition"
+    target_buyer: "cozy gaming decor and holiday printable shoppers"
+    keywords: [pixel art workshop, pixel gifts, christmas game room art]
+    seasonality: Christmas
+    commercial_notes: "Original toy workshop; avoid recognizable characters and branded toys"
+    style_family: pixel_art
+    recommended_model: sd15
+    pixel_palette_colors: 32
+  - id: pixel_new_year_fireworks_lake
+    name: Pixel Art New Year Fireworks Lake
+    category: new_year_wall_art
+    marketplace: [etsy, shopee]
+    primary_subject: "colorful fireworks reflected on a frozen lake"
+    environment: "quiet winter shoreline with distant pine silhouettes"
+    art_style: "crisp retro pixel-art landscape"
+    palette: "midnight navy, teal, violet, coral, warm gold"
+    lighting: "bright pixel fireworks with restrained reflections"
+    perspective: "wide 2:1 panoramic landscape"
+    composition: "fireworks across upper sky, low dark shoreline, open reflective center"
+    detail_level: medium
+    negative_prompt: "photorealism, smooth gradients, antialiasing, readable text, numbers, logos, watermark"
+    target_buyer: "New Year printable and retro gaming decor shoppers"
+    keywords: [pixel art new year, pixel fireworks, new year wall art]
+    seasonality: New Year
+    commercial_notes: "No readable year or event branding; suitable for evergreen winter display"
+    style_family: pixel_art
+    recommended_model: sd15
+    pixel_palette_colors: 32
+  - id: pixel_new_year_first_sunrise
+    name: Pixel Art First Sunrise
+    category: new_year_wall_art
+    marketplace: [etsy, shopee]
+    primary_subject: "a quiet first sunrise over a snowy mountain ridge"
+    environment: "peaceful winter valley at dawn"
+    art_style: "minimal 16-bit pixel-art landscape"
+    palette: "soft peach, pale gold, dusty rose, snow white, blue-gray"
+    lighting: "low sunrise glow with clear stepped color bands"
+    perspective: "wide 2:1 landscape"
+    composition: "sun near the horizon, layered mountain silhouettes, generous calm sky"
+    detail_level: low
+    negative_prompt: "photorealism, smooth gradients, antialiasing, multiple suns, text, logos, clutter"
+    target_buyer: "minimalist winter decor and New Year gift shoppers"
+    keywords: [pixel sunrise, new year pixel art, winter pixel landscape]
+    seasonality: New Year
+    commercial_notes: "Original seasonal landscape with no location or cultural ceremony claim"
+    style_family: pixel_art
+    recommended_model: sd15
+    pixel_palette_colors: 20
+  - id: pixel_midnight_city_rooftop
+    name: Pixel Art Midnight Rooftop
+    category: new_year_wall_art
+    marketplace: [etsy, shopee]
+    primary_subject: "quiet rooftops beneath distant New Year fireworks"
+    environment: "fictional small city in winter"
+    art_style: "cinematic 16-bit pixel-art background"
+    palette: "deep navy, slate, magenta, cyan, amber"
+    lighting: "distant fireworks and a few warm windows"
+    perspective: "wide skyline panorama"
+    composition: "low rooftops, fireworks spaced across sky, no central focal obstruction"
+    detail_level: medium
+    negative_prompt: "photorealism, smooth gradients, antialiasing, legible signs, text, logos, famous skyline"
+    target_buyer: "retro gaming rooms and winter celebration print shoppers"
+    keywords: [pixel art city, pixel fireworks, new year pixel print]
+    seasonality: New Year
+    commercial_notes: "Fictional skyline; no recognizable landmark or readable countdown signage"
+    style_family: pixel_art
+    recommended_model: sd15
+    pixel_palette_colors: 28
+  - id: pixel_new_year_countdown_clock
+    name: Pixel Art Midnight Clocktower
+    category: new_year_wall_art
+    marketplace: [etsy, shopee]
+    primary_subject: "a simple town clock showing midnight"
+    environment: "snowy fictional town square on New Year's Eve"
+    art_style: "crisp storybook pixel art"
+    palette: "ink blue, snow cream, pine green, brass gold"
+    lighting: "clock face and windows glowing softly at night"
+    perspective: "wide town-square scene"
+    composition: "clocktower off-center, open snowy foreground, a few distant celebratory lights"
+    detail_level: medium
+    negative_prompt: "photorealism, smooth gradients, antialiasing, letters, numerals, text, logos, multiple clocks"
+    target_buyer: "New Year gift shoppers and retro pixel-art decor fans"
+    keywords: [pixel clocktower, midnight pixel art, new year printable]
+    seasonality: New Year
+    commercial_notes: "Use simple clock hands without generated lettering or branded event details"
+    style_family: pixel_art
+    recommended_model: sd15
+    pixel_palette_colors: 24
+  - id: pixel_nano_planted_aquarium
+    name: Pixel Art Nano Planted Aquarium
+    category: aquarium
+    marketplace: [etsy, shopee]
+    primary_subject: "a compact planted freshwater aquascape with driftwood and small fish"
+    environment: "clear shallow aquarium with fine sand and aquatic plants"
+    art_style: "clean 16-bit pixel-art aquarium background"
+    palette: "emerald, moss green, sand, muted turquoise"
+    lighting: "soft overhead aquarium light and gentle pixel caustics"
+    perspective: "straight-on panoramic tank view"
+    composition: "wood and plants frame both edges; keep a broad low-detail open swimming lane in the center"
+    detail_level: medium
+    negative_prompt: "photorealism, smooth gradients, antialiasing, dense plants across center, text, logos, oversized fish"
+    target_buyer: "nano tank owners and planted aquarium hobbyists"
+    keywords: [pixel aquarium background, nano tank background, pixel aquascape]
+    seasonality: evergreen
+    commercial_notes: "Digital decor graphic only; verify size ratio against the buyer's tank"
+    style_family: pixel_art
+    recommended_model: sd15
+    pixel_palette_colors: 24
+  - id: pixel_tropical_reef_swim_lane
+    name: Pixel Art Tropical Reef Swim Lane
+    category: aquarium
+    marketplace: [etsy, shopee]
+    primary_subject: "bright tropical corals and small reef fish"
+    environment: "sunlit turquoise reef edge"
+    art_style: "colorful 16-bit pixel-art aquarium panorama"
+    palette: "turquoise, coral orange, lemon yellow, sea green"
+    lighting: "blocky sunbeams and subtle pixel caustics"
+    perspective: "straight-on wide aquarium background"
+    composition: "coral clusters and fish near the side margins, clear low-detail central swim lane"
+    detail_level: medium
+    negative_prompt: "photorealism, smooth gradients, antialiasing, crowded center, text, logos, malformed fish"
+    target_buyer: "freshwater and marine aquarium background shoppers"
+    keywords: [pixel reef background, tropical aquarium wallpaper, pixel coral art]
+    seasonality: evergreen
+    commercial_notes: "Stylized fantasy marine art, not a species-accurate habitat claim"
+    style_family: pixel_art
+    recommended_model: sd15
+    pixel_palette_colors: 32
+  - id: pixel_moonlit_blackwater_tank
+    name: Pixel Art Moonlit Blackwater Tank
+    category: aquarium
+    marketplace: [etsy, shopee]
+    primary_subject: "silhouetted roots, floating leaves, and a few small fish"
+    environment: "calm blackwater aquarium with tea-colored water"
+    art_style: "moody 16-bit pixel-art aquascape"
+    palette: "near-black navy, copper, olive, muted teal"
+    lighting: "small moonlit highlights and dim surface glow"
+    perspective: "straight-on panoramic tank view"
+    composition: "roots frame the upper corners, open dark swimming area through the middle"
+    detail_level: low
+    negative_prompt: "photorealism, smooth gradients, antialiasing, busy center, text, logos, bright neon"
+    target_buyer: "blackwater biotope and dark aquascape enthusiasts"
+    keywords: [blackwater aquarium background, pixel aquascape, dark tank wallpaper]
+    seasonality: evergreen
+    commercial_notes: "Decorative stylization; do not imply fish-care or habitat advice"
+    style_family: pixel_art
+    recommended_model: sd15
+    pixel_palette_colors: 20
+  - id: pixel_crystal_cave_aquarium
+    name: Pixel Art Crystal Cave Aquarium
+    category: aquarium
+    marketplace: [etsy, shopee]
+    primary_subject: "faceted blue crystals and sparse aquatic plants"
+    environment: "fantasy underwater cave"
+    art_style: "crisp retro pixel-art aquarium scene"
+    palette: "sapphire, ice blue, teal, charcoal"
+    lighting: "small luminous crystal accents with dark side framing"
+    perspective: "straight-on wide tank view"
+    composition: "crystals stay along the side edges; preserve an open dark center for fish visibility"
+    detail_level: medium
+    negative_prompt: "photorealism, smooth gradients, antialiasing, bright central objects, text, logos, excessive detail"
+    target_buyer: "fantasy aquarium decor and gaming-room shoppers"
+    keywords: [pixel crystal cave, fantasy aquarium background, pixel underwater art]
+    seasonality: evergreen
+    commercial_notes: "Original fantasy scene; aquarium vinyl use requires a separate correctly sized file"
+    style_family: pixel_art
+    recommended_model: sd15
+    pixel_palette_colors: 24
+  - id: pixel_underwater_holiday_lights
+    name: Pixel Art Underwater Holiday Lights
+    category: aquarium
+    marketplace: [etsy, shopee]
+    primary_subject: "a small coral arrangement with a few warm festive lights"
+    environment: "deep blue winter reef"
+    art_style: "festive 16-bit pixel-art aquarium panorama"
+    palette: "midnight blue, teal, evergreen, warm gold"
+    lighting: "subtle pixel caustics and small warm lights near the edges"
+    perspective: "straight-on wide aquarium background"
+    composition: "decor and coral stay at the sides; broad open central swimming space"
+    detail_level: low
+    negative_prompt: "photorealism, smooth gradients, antialiasing, text, logos, large center decoration, clutter"
+    target_buyer: "seasonal aquarium background and holiday gaming decor shoppers"
+    keywords: [pixel christmas aquarium, holiday fish tank background, pixel reef]
+    seasonality: Christmas
+    commercial_notes: "Generic seasonal decor; keep lights as illustration, not electrical or animal-care claims"
+    style_family: pixel_art
+    recommended_model: sd15
+    pixel_palette_colors: 24
+  - id: pixel_midnight_countdown_reef
+    name: Pixel Art Midnight Countdown Reef
+    category: aquarium
+    marketplace: [etsy, shopee]
+    primary_subject: "a few tiny reef fish passing beneath distant colorful fireworks seen above the waterline"
+    environment: "stylized split-level winter shoreline and underwater reef"
+    art_style: "retro pixel-art New Year aquarium panorama"
+    palette: "deep navy, turquoise, violet, coral, gold"
+    lighting: "sparse distant fireworks above water and gentle underwater caustics"
+    perspective: "straight-on extra-wide aquarium background"
+    composition: "reef remains low at both edges; leave the central swim lane dark, open, and calm"
+    detail_level: low
+    negative_prompt: "photorealism, smooth gradients, antialiasing, readable text, numbers, logos, busy center"
+    target_buyer: "New Year seasonal tank decor and pixel-art collectors"
+    keywords: [pixel new year aquarium, pixel fireworks reef, festive fish tank background]
+    seasonality: New Year
+    commercial_notes: "Fantasy seasonal decor; no claim that fireworks or lights are safe for live animals"
+    style_family: pixel_art
+    recommended_model: sd15
+    pixel_palette_colors: 24

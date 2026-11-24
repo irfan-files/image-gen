@@ -27,6 +27,7 @@ SETTINGS_FILE = ROOT / "gui_settings.json"
 CATEGORIES = {
     "All themes": None,
     "Christmas wall art": "christmas_wall_art",
+    "New Year wall art": "new_year_wall_art",
     "Winter landscape": "winter_landscape",
     "Aquarium": "aquarium",
 }
@@ -344,6 +345,18 @@ class SeasonalArtGUI:
 
         model_key = MODEL_LABEL_TO_KEY[self.model_var.get()]
         model_option = MODEL_OPTIONS[model_key]
+        pixel_themes = [
+            theme_id for theme_id in counts
+            if self.themes[theme_id].get("style_family") == "pixel_art"
+        ]
+        if pixel_themes and model_key != "sd15":
+            if not messagebox.askyesno(
+                "Pixel-art model recommendation",
+                "For pixel-art themes on the tested Intel Arc A530M, SD 1.5 is the recommended "
+                "model because it is lighter and more practical on 4 GB VRAM. "
+                "The selected model will still be used. Continue?",
+            ):
+                return
         if model_key == "flux-dev":
             if not messagebox.askyesno(
                 "FLUX.1-dev license warning",

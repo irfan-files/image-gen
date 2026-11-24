@@ -135,8 +135,23 @@ class Generator:
         tmp_source.replace(source)
 
         print_path = sku_dir / f"print_{width}x{height}.png"
-        upscale_method = "Lanczos resize only (AI upscaling disabled)"
-        if ai_upscale:
+        style_family = theme.get("style_family", "standard")
+        pixel_palette_colors = int(theme.get("pixel_palette_colors", 32))
+        if style_family == "pixel_art":
+            from upscale import pixel_art_resize
+
+            print_image, pixel_cell_size = pixel_art_resize(
+                image, width, height, colors=pixel_palette_colors
+            )
+            tmp_print = print_path.with_suffix(".png.tmp")
+            print_image.save(tmp_print, format="PNG", dpi=(150, 150), optimize=True)
+            tmp_print.replace(print_path)
+            upscale_method = "Not used for pixel art; palette quantization + nearest-neighbor"
+            print_processing_method = (
+                f"Pixel-art palette quantization ({pixel_palette_colors} colors) + "
+                f"nearest-neighbor scaling (~{pixel_cell_size}px cells)"
+            )
+        elif ai_upscale:
             try:
                 from upscale import upscale_one
                 upscale_result = upscale_one(
@@ -149,6 +164,7 @@ class Generator:
                 raise GenerationError(
                     f"AI upscaling failed for {sku}; no low-resolution print master was saved: {exc}"
                 ) from exc
+            print_processing_method = upscale_method
         else:
             from upscale import cover_resize
 
@@ -156,12 +172,19 @@ class Generator:
             tmp_print = print_path.with_suffix(".png.tmp")
             resized.save(tmp_print, format="PNG", dpi=(150, 150))
             tmp_print.replace(print_path)
+            upscale_method = "Not used (AI upscaling disabled)"
+            print_processing_method = "Lanczos framing and resize"
 
         preview = sku_dir / "preview.jpg"
         preview_tmp = preview.with_suffix(".jpg.tmp")
         with Image.open(print_path) as print_image:
             preview_image = print_image.convert("RGB")
-        preview_image.thumbnail((1280, 1280), Image.Resampling.LANCZOS)
+        preview_resampling = (
+            Image.Resampling.NEAREST
+            if style_family == "pixel_art"
+            else Image.Resampling.LANCZOS
+        )
+        preview_image.thumbnail((1280, 1280), preview_resampling)
         preview_image.save(preview_tmp, format="JPEG", quality=92, dpi=(150, 150), optimize=True)
         preview_tmp.replace(preview)
 
@@ -179,6 +202,10 @@ class Generator:
             "Commercial use note": self.model_option.commercial_note,
             "Width": width, "Height": height, "Print PPI": 150,
             "AI upscale method": upscale_method,
+            "Print processing method": print_processing_method,
+            "Style family": style_family,
+            "Recommended model": theme.get("recommended_model"),
+            "Pixel palette colors": pixel_palette_colors if style_family == "pixel_art" else None,
             "Quality status": qc["status"], "Etsy title": etsy_title,
             "Etsy tags": etsy_tags, "Etsy description": etsy_desc,
             "Shopee title": shopee_title, "Shopee description": shopee_desc,

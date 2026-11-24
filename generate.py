@@ -38,7 +38,10 @@ PRINT_MODES = {
 def parse_args():
     p = argparse.ArgumentParser(description="Seasonal Art Factory - local batch artwork generator")
     p.add_argument("--theme")
-    p.add_argument("--category", choices=["christmas_wall_art", "winter_landscape", "aquarium"])
+    p.add_argument(
+        "--category",
+        choices=["christmas_wall_art", "new_year_wall_art", "winter_landscape", "aquarium"],
+    )
     p.add_argument("--count", type=int, default=1,
                    help="Total number of images; ignored for --count-per-theme and --theme-counts")
     p.add_argument("--count-per-theme", type=int,
@@ -227,6 +230,13 @@ def main():
     selected_model_id = args.model_id or model_option.model_id
     print(f"Model: {selected_model_id} ({model_option.license_name})")
     print(f"Inference steps: {steps}")
+    pixel_themes = [theme for theme, _seed in jobs if theme.get("style_family") == "pixel_art"]
+    if pixel_themes and model_key != "sd15":
+        print(
+            "PIXEL-ART MODEL NOTE: SD 1.5 is recommended for the tested Arc A530M; "
+            "the selected model remains in use. Pixel-art masters use palette quantization "
+            "and nearest-neighbor scaling instead of Real-ESRGAN."
+        )
     if model_option.minimum_ram_gb > info.ram_gb:
         print(
             f"WARNING: this app recommends at least {model_option.minimum_ram_gb} GB system RAM "

@@ -33,7 +33,7 @@ Models are loaded one at a time. Diffusers, Transformers, and PyTorch XPU versio
 - `quality_control.py`: dimensions, mode, integrity, blur, clipping, pHash duplicate detection, contact sheets.
 - `upscale.py`: tiled PyTorch Real-ESRGAN and explicit Lanczos-only mode.
 - `metadata.py`: atomic JSON, CSV, and Excel exports.
-- `themes.yaml`: 36+ validated themes.
+- `themes.yaml`: validated Christmas, New Year, winter, and aquarium themes, including 14 pixel-art designs.
 
 ## macOS setup
 
@@ -72,6 +72,14 @@ Double-click `start_gui.bat`. It launches the GUI using the project-local `.venv
 The GUI saves selected counts and settings in `gui_settings.json`. The generated batch runs sequentially and progress is shown in the GUI. A positive image count is used regardless of the row's checkbox; checkboxes are for bulk-selecting rows before using **Apply count**.
 
 Select one of the model presets at the top of the GUI: SD 1.5 (recommended for the Arc), SDXL, FLUX.1-dev, SD 3.5 Medium, FLUX.1-schnell, or Z-Image-Turbo. Selecting Schnell or Z-Image-Turbo sets the suggested step count (4 or 9); it can be adjusted as appropriate. The CLI equivalent is `--model sd15`, `--model sdxl`, `--model flux-dev`, `--model sd35-medium`, `--model flux-schnell`, or `--model z-image-turbo`.
+
+### Pixel-art collections and product strategy
+
+The theme list includes 14 pixel-art concepts: four Christmas wall prints, four year-neutral New Year scenes, and six aquarium backgrounds. In the GUI, filter by **Christmas wall art**, **New Year wall art**, or **Aquarium**, then enter a separate image count for each theme as usual. The same themes can be selected from the CLI with `--category new_year_wall_art` or `--category aquarium`.
+
+SD 1.5 is the recommended starting model for these themes on the tested 4 GB Arc A530M; this is a hardware/practicality recommendation, not a claim that it is the only suitable model. Pixel-art prompts request deliberate block shapes and open composition. Pixel-art outputs deliberately bypass Real-ESRGAN: the print master is cropped to the requested aspect ratio, reduced to a coarse grid and limited palette, then enlarged with nearest-neighbor interpolation. This preserves hard pixel edges at sizes such as 6000×3000, but does not create new source detail or make an image suitable for every print size without review. The GUI may still have the AI-upscale option selected; it is intentionally ignored for pixel-art themes.
+
+The product concepts are hypotheses, not sales forecasts. Holiday prints are seasonal and should be tested as coordinated bundles and year-neutral designs; aquarium backgrounds are less seasonal and can support evergreen listings, especially when the center remains visually open. Before investing in a large batch, compare marketplace search suggestions and competing listings, test a small set of thumbnails/titles/tags, and track clicks and conversions separately on Etsy and Shopee. No live sales-volume or ranking data was available to validate demand for these specific concepts. Use original generic motifs, check each marketplace's current AI-content and listing rules, and verify any third-party model or LoRA license for commercial use; no pixel-art LoRA is required or bundled by this workflow.
 
 The error `ModuleNotFoundError: No module named 'yaml'` means PyYAML is absent from the specific Python interpreter used to run the application. Installing PyYAML into a global Python does not install it in `.venv`. Use `start_gui.bat`; for a manual repair, run `.venv\Scripts\python.exe -m pip install PyYAML`.
 
@@ -170,6 +178,7 @@ The upscaler uses XPU when available and tiles work to limit GPU memory; otherwi
 The default master is exactly 6000×3000 PNG RGB at 150 DPI metadata. At 150 PPI, a 6000×3000 image is 40×20 inches (101.6×50.8 cm). The 12000×6000 large-print master is about 80×40 inches (203.2×101.6 cm). DPI metadata does not add pixels or guarantee print quality.
 
 Print quality depends on native image quality, upscaling, viewing distance, and substrate. AI images require human review for composition and artifacts.
+Pixel-art masters use palette quantization and nearest-neighbor enlargement instead of Real-ESRGAN to preserve the intended block-grid aesthetic. Check the final print dimensions and visible pixel scale at the intended viewing distance before listing.
 
 ## Quality and human review
 

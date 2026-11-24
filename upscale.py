@@ -168,6 +168,41 @@ def cover_resize(image: Image.Image, width: int, height: int) -> Image.Image:
     return resized.crop((left, top, left+width, top+height)).convert("RGB")
 
 
+def pixel_art_resize(
+    image: Image.Image,
+    width: int,
+    height: int,
+    colors: int = 32,
+) -> tuple[Image.Image, int]:
+    if width < 1 or height < 1:
+        raise ValueError("Pixel-art output dimensions must be positive.")
+    if not 2 <= colors <= 256:
+        raise ValueError("Pixel-art palette size must be between 2 and 256 colors.")
+
+    source = image.convert("RGB")
+    target_ratio = width / height
+    source_ratio = source.width / source.height
+    if source_ratio > target_ratio:
+        crop_width = max(1, round(source.height * target_ratio))
+        left = (source.width - crop_width) // 2
+        source = source.crop((left, 0, left + crop_width, source.height))
+    elif source_ratio < target_ratio:
+        crop_height = max(1, round(source.width / target_ratio))
+        top = (source.height - crop_height) // 2
+        source = source.crop((0, top, source.width, top + crop_height))
+
+    cell_size = min(32, max(8, round(min(width, height) / 100)))
+    grid_size = (max(1, round(width / cell_size)), max(1, round(height / cell_size)))
+    pixel_grid = source.resize(grid_size, Image.Resampling.LANCZOS)
+    pixel_grid = pixel_grid.quantize(
+        colors=colors,
+        method=Image.Quantize.MEDIANCUT,
+        dither=Image.Dither.NONE,
+    ).convert("RGB")
+    final = pixel_grid.resize((width, height), Image.Resampling.NEAREST)
+    return final, cell_size
+
+
 def upscale_one(source: Path, destination: Path, width: int, height: int,
                 model: str, tile: int = 512, overlap: int = 32,
                 use_realesrgan: bool = False) -> dict:
