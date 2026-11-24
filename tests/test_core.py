@@ -105,6 +105,47 @@ def test_pixel_art_resize_uses_requested_pixel_grid():
     assert output.getpixel((0, 0)) != output.getpixel((159, 79))
 
 
+def test_generation_reuses_resolution_that_succeeded_after_oom(tmp_path):
+    class FakeAdapter:
+        def __init__(self):
+            self.calls = []
+
+        def generate(self, _prompt, _negative, width, height, *_args):
+            self.calls.append((width, height))
+            if (width, height) == (1536, 768):
+                raise RuntimeError("MPS backend out of memory")
+            return Image.new("RGB", (width, height), "navy")
+
+        def unload(self):
+            pass
+
+    generator = Generator.__new__(Generator)
+    generator.backend = "cpu"
+    generator.model_key = "sd15"
+    generator.model_option = MODEL_OPTIONS["sd15"]
+    generator.model_id = MODEL_OPTIONS["sd15"].model_id
+    generator.info = SimpleNamespace(backend="cpu")
+    generator.adapter = FakeAdapter()
+    generator.steps = 1
+    generator.guidance = None
+    generator.scheduler = "default"
+    generator.style_preset = ""
+    theme = load_themes(ROOT / "themes.yaml")["vintage_winter_cabin"]
+
+    generator.generate_one(
+        theme, tmp_path, width=1536, height=768, seed=10, ai_upscale=False
+    )
+    generator.generate_one(
+        theme, tmp_path, width=1536, height=768, seed=11, ai_upscale=False
+    )
+
+    assert generator.adapter.calls == [
+        (1536, 768),
+        (1344, 672),
+        (1344, 672),
+    ]
+
+
 def test_csv_export(tmp_path):
     path = tmp_path / "catalog.csv"
     write_export_csv(path, [{"SKU": "TEST", "Filename": "test.png"}])

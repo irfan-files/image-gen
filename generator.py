@@ -58,6 +58,7 @@ class Generator:
         self.scheduler = scheduler
         self.style_preset = style_preset
         self.adapter = None
+        self._successful_resolutions: dict[tuple[int, int], tuple[int, int]] = {}
 
     def create_adapter(self):
         if self.backend == "openvino":
@@ -110,21 +111,35 @@ class Generator:
         elif width >= 768:
             resolutions = [(width, height), (768, 384), (640, 320), (512, 256)]
 
+        resolution_key = (width, height)
+        successful_resolutions = getattr(self, "_successful_resolutions", {})
+        successful_resolution = successful_resolutions.get(resolution_key)
+        if successful_resolution in resolutions:
+            resolutions = resolutions[resolutions.index(successful_resolution):]
+
         started = time.monotonic()
         last_error = None
         image = None
         actual_resolution = None
-        for rw, rh in resolutions:
+        for index, (rw, rh) in enumerate(resolutions):
             try:
                 self.ensure_adapter()
                 image = self.adapter.generate(prompt, negative, rw, rh, seed,
                                               self.steps, self.guidance, self.scheduler)
                 actual_resolution = (rw, rh)
+                successful_resolutions[resolution_key] = actual_resolution
+                self._successful_resolutions = successful_resolutions
                 break
             except Exception as exc:
                 last_error = exc
                 if "out of memory" not in str(exc).lower() and "oom" not in str(exc).lower():
                     break
+                if index + 1 < len(resolutions):
+                    next_width, next_height = resolutions[index + 1]
+                    print(
+                        f"Out of memory at {rw}x{rh}; retrying at "
+                        f"{next_width}x{next_height}."
+                    )
                 self.unload()
         if image is None:
             raise GenerationError(f"Generation failed after retries: {last_error}")
