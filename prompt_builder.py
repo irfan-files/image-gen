@@ -4,13 +4,6 @@ import hashlib
 import random
 from typing import Iterable
 
-COMPOSITION_VARIANTS = [
-    "harmonious panoramic composition",
-    "subject balanced at the left third with generous clean space",
-    "subject balanced at the right third with calm negative space",
-    "layered depth from foreground through distant background",
-]
-
 PALETTE_VARIANTS = [
     "sophisticated restrained palette",
     "muted tonal palette with natural color balance",
@@ -24,6 +17,10 @@ TEXTURE_VARIANTS = [
 ]
 
 QUALITY_SUFFIX = "visually coherent, strong depth, no text, no watermark, no logo"
+WALL_ART_OUTPUT = "flat 2D full-bleed standalone illustration, artwork only, fills the entire canvas"
+UNDERWATER_OUTPUT = (
+    "flat 2D full-bleed underwater wallpaper illustration, scene only, fills the entire canvas"
+)
 PIXEL_ART_STYLE_PROMPTS = {
     "8-bit": "8-bit-inspired pixel art, chunky square pixels, compact palette, hard edges",
     "16-bit": "16-bit-inspired pixel art, crisp square pixels, balanced palette, hard edges",
@@ -37,17 +34,20 @@ def build_prompt(theme: dict, extra_prompt: str = "", seed: int | None = None,
     aquarium = theme.get("category") == "aquarium"
     pixel_art = theme.get("style_family") == "pixel_art"
     rng = random.Random(seed if seed is not None else variant)
-    composition_variant = COMPOSITION_VARIANTS[(variant + rng.randrange(0, len(COMPOSITION_VARIANTS))) % len(COMPOSITION_VARIANTS)]
     palette_variant = PALETTE_VARIANTS[(variant + rng.randrange(0, len(PALETTE_VARIANTS))) % len(PALETTE_VARIANTS)]
-    aquarium_line = ""
+    composition = theme.get("composition", "balanced panoramic composition")
     if aquarium:
         aquarium_line = (
-            f"{theme.get('composition', 'clean panoramic composition')}, "
-            f"{aquarium_contrast}-contrast aquarium background, ample open swimming area in the center, "
-            "details concentrated toward side edges, easy to read through aquarium glass"
+            f"{composition}, "
+            f"{aquarium_contrast}-contrast underwater scene, open central swim lane, "
+            "aquatic details framing the side edges"
         )
+        perspective_line = "perspective: straight-on panoramic underwater view"
     else:
-        aquarium_line = f"{theme.get('composition', composition_variant)}, {composition_variant}"
+        aquarium_line = composition
+        perspective_line = f"perspective: {theme['perspective']}"
+
+    output_type = UNDERWATER_OUTPUT if aquarium else WALL_ART_OUTPUT
 
     if pixel_art:
         pixel_style = PIXEL_ART_STYLE_PROMPTS.get(
@@ -55,6 +55,7 @@ def build_prompt(theme: dict, extra_prompt: str = "", seed: int | None = None,
             PIXEL_ART_STYLE_PROMPTS["16-bit"],
         )
         parts = [
+            output_type,
             pixel_style,
             theme["primary_subject"],
             theme["environment"],
@@ -64,13 +65,14 @@ def build_prompt(theme: dict, extra_prompt: str = "", seed: int | None = None,
         ]
     else:
         parts = [
+            output_type,
             f"{theme['art_style']} artwork",
             theme["primary_subject"],
             theme["environment"],
             theme["lighting"],
             f"palette: {palette}, {palette_variant}",
             aquarium_line,
-            f"perspective: {theme['perspective']}",
+            perspective_line,
             TEXTURE_VARIANTS[variant % len(TEXTURE_VARIANTS)],
             extra_prompt.strip(),
             QUALITY_SUFFIX,
@@ -80,6 +82,19 @@ def build_prompt(theme: dict, extra_prompt: str = "", seed: int | None = None,
 
 
 def build_negative(theme: dict, extra_negative: str = "") -> str:
+    presentation_negative = (
+        "product mockup, framed print, picture frame, poster mounted on wall, "
+        "wall display, gallery wall, multiple framed artworks, duplicate artwork, "
+        "diptych, collage, staged product photo, product catalog photo, "
+        "external room around the artwork, "
+        "person, human figure, figurine, statue, miniature diorama, 3D product render"
+    )
+    aquarium_negative = (
+        "physical aquarium tank, fish tank, glass tank walls, aquarium glass, tank rim, "
+        "aquarium stand, filter, pump, cables, fishbowl"
+        if theme.get("category") == "aquarium"
+        else ""
+    )
     quality_negative = (
         "photorealistic, vector art, smooth gradients, antialiased edges, soft focus, "
         "blur, text, logo, watermark"
@@ -87,7 +102,13 @@ def build_negative(theme: dict, extra_negative: str = "") -> str:
         else "blurry, low resolution, jpeg artifacts, oversharpened, bad anatomy, deformed"
     )
     return ", ".join(
-        p for p in [theme.get("negative_prompt", ""), extra_negative, quality_negative] if p
+        p for p in [
+            theme.get("negative_prompt", ""),
+            extra_negative,
+            presentation_negative,
+            aquarium_negative,
+            quality_negative,
+        ] if p
     )
 
 

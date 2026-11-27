@@ -8,6 +8,8 @@ from hardware import configure_torch_logging
 from model_catalog import MODEL_OPTIONS, get_model_option
 from .base import BaseGenerator
 
+MAX_CLIP_PROMPT_CHUNKS = 4
+
 
 def _configure_xpu_fp64_fallback(torch) -> None:
     import diffusers.utils.torch_utils as diffusers_torch_utils
@@ -25,6 +27,208 @@ def _configure_xpu_fp64_fallback(torch) -> None:
 
     diffusers_torch_utils._FP64_UNSUPPORTED_DEVICES = unsupported_devices
     dtype_unsupported_devices[torch.float64] = unsupported_devices
+
+
+def _token_ids(tokenizer, text: str) -> list[int]:
+    backend_tokenizer = getattr(tokenizer, "backend_tokenizer", None)
+    if backend_tokenizer is not None:
+        backend_tokenizer.no_truncation()
+        backend_tokenizer.no_padding()
+        return backend_tokenizer.encode(text, add_special_tokens=False).ids
+    encode = getattr(tokenizer, "encode", None)
+    if encode is not None:
+        return encode(
+            text,
+            add_special_tokens=False,
+            truncation=False,
+            padding=False,
+        )
+    tokenize = getattr(tokenizer, "_tokenize", None) or tokenizer.tokenize
+    tokens = tokenize(text)
+    return tokenizer.convert_tokens_to_ids(tokens)
+
+
+def _clip_content_limit(tokenizer) -> int:
+    model_max_length = getattr(tokenizer, "model_max_length", 77)
+    if not isinstance(model_max_length, int) or model_max_length > 4096:
+        model_max_length = 77
+    return max(1, model_max_length - 2)
+
+
+def _split_oversized_clip_word(word: str, tokenizers: list, limits: list[int]) -> list[str]:
+    fragments = []
+    remaining = word
+    while remaining:
+        low = 1
+        high = len(remaining)
+        best = 0
+        while low <= high:
+            middle = (low + high) // 2
+            fragment = remaining[:middle]
+            if all(
+                len(_token_ids(tokenizer, fragment)) <= limit
+                for tokenizer, limit in zip(tokenizers, limits)
+            ):
+                best = middle
+                low = middle + 1
+            else:
+                high = middle - 1
+        if best == 0:
+            raise ValueError(
+                "A prompt fragment cannot fit within a CLIP tokenizer's context limit."
+            )
+        fragments.append(remaining[:best])
+        remaining = remaining[best:]
+    return fragments
+
+
+def _split_clip_prompt(
+    text: str,
+    tokenizers: list,
+    max_chunks: int = MAX_CLIP_PROMPT_CHUNKS,
+    first_only: bool = False,
+) -> list[str]:
+    if not tokenizers:
+        return [text]
+
+    limits = [_clip_content_limit(tokenizer) for tokenizer in tokenizers]
+    def fits(candidate: str) -> bool:
+        return all(
+            len(_token_ids(tokenizer, candidate)) <= limit
+            for tokenizer, limit in zip(tokenizers, limits)
+        )
+
+    chunks: list[str] = []
+    current = ""
+
+    for word in text.split():
+        candidate = f"{current} {word}".strip()
+        if fits(candidate):
+            current = candidate
+            continue
+
+        if current:
+            chunks.append(current)
+            if first_only:
+                return chunks
+            if len(chunks) >= max_chunks:
+                raise ValueError(
+                    f"Prompt exceeds the supported {max_chunks}-chunk CLIP limit; "
+                    "shorten the prompt or extra prompt text."
+                )
+            current = ""
+
+        if fits(word):
+            current = word
+            continue
+
+        for fragment in _split_oversized_clip_word(word, tokenizers, limits):
+            candidate = current + fragment
+            if fits(candidate):
+                current = candidate
+                continue
+            chunks.append(current)
+            if first_only:
+                return chunks
+            if len(chunks) >= max_chunks:
+                raise ValueError(
+                    f"Prompt exceeds the supported {max_chunks}-chunk CLIP limit; "
+                    "shorten the prompt or extra prompt text."
+                )
+            current = fragment
+
+    if current or not chunks:
+        chunks.append(current)
+    if len(chunks) > max_chunks:
+        raise ValueError(
+            f"Prompt exceeds the supported {max_chunks}-chunk CLIP limit; "
+            "shorten the prompt or extra prompt text."
+        )
+    return chunks
+
+
+def _encode_sd15_prompt(pipe, text: str, device):
+    import torch
+
+    tokenizer = pipe.tokenizer
+    text_encoder = pipe.text_encoder
+    max_length = int(text_encoder.config.max_position_embeddings)
+    payload_size = max_length - 2
+    token_ids = _token_ids(tokenizer, text)
+    chunks = [
+        token_ids[index:index + payload_size]
+        for index in range(0, len(token_ids), payload_size)
+    ] or [[]]
+    if len(chunks) > MAX_CLIP_PROMPT_CHUNKS:
+        raise ValueError(
+            f"Prompt exceeds the supported {MAX_CLIP_PROMPT_CHUNKS}-chunk CLIP limit; "
+            "shorten the prompt or extra prompt text."
+        )
+
+    bos_id = tokenizer.bos_token_id
+    eos_id = tokenizer.eos_token_id
+    pad_id = getattr(tokenizer, "pad_token_id", None)
+    if pad_id is None:
+        pad_id = eos_id
+    input_batch = []
+    attention_masks = []
+    valid_lengths = []
+    for chunk in chunks:
+        input_ids = [bos_id, *chunk, eos_id]
+        valid_length = len(input_ids)
+        input_ids.extend([pad_id] * (max_length - valid_length))
+        input_batch.append(input_ids)
+        valid_lengths.append(valid_length)
+        attention_masks.append(
+            [1] * valid_length + [0] * (max_length - valid_length)
+        )
+    input_tensor = torch.tensor(input_batch, dtype=torch.long, device=device)
+    encoder_kwargs = {}
+    if getattr(text_encoder.config, "use_attention_mask", False):
+        encoder_kwargs["attention_mask"] = torch.tensor(
+            attention_masks, dtype=torch.long, device=device
+        )
+    with torch.inference_mode():
+        encoded = text_encoder(input_tensor, **encoder_kwargs)[0]
+    return torch.cat(
+        [
+            encoded[index:index + 1, :valid_length, :]
+            for index, valid_length in enumerate(valid_lengths)
+        ],
+        dim=1,
+    )
+
+
+def _pad_prompt_embeddings(prompt_embeds, target_length: int):
+    if prompt_embeds.shape[1] >= target_length:
+        return prompt_embeds
+    padding = prompt_embeds[:, -1:, :].expand(
+        -1, target_length - prompt_embeds.shape[1], -1
+    )
+    import torch
+
+    return torch.cat((prompt_embeds, padding), dim=1)
+
+
+def _required_sequence_length(tokenizer, prompts: tuple[str, ...], minimum: int, maximum: int) -> int:
+    token_count = max((len(_token_ids(tokenizer, text)) for text in prompts), default=0) + 1
+    if token_count > maximum:
+        raise ValueError(
+            f"Prompt exceeds this model's {maximum}-token text-encoder limit; "
+            "shorten the prompt or extra prompt text."
+        )
+    return max(minimum, token_count)
+
+
+def _cast_sdxl_vae_decode_input(vae, dtype) -> None:
+    original_decode = vae.decode
+
+    def decode(latents, *args, **kwargs):
+        if latents.dtype != dtype:
+            latents = latents.to(dtype=dtype)
+        return original_decode(latents, *args, **kwargs)
+
+    vae.decode = decode
 
 
 class DiffusersAdapter(BaseGenerator):
@@ -80,11 +284,17 @@ class DiffusersAdapter(BaseGenerator):
         else:
             dtype = torch.float32
 
+        load_dtype = (
+            {"default": dtype, "vae": torch.float32}
+            if self.model_key == "sdxl"
+            else dtype
+        )
+
         try:
             self.pipe = pipeline_class.from_pretrained(
                 self.model_id,
                 cache_dir=self.cache_dir,
-                dtype=dtype,
+                dtype=load_dtype,
                 use_safetensors=True,
             )
         except Exception as exc:
@@ -95,6 +305,9 @@ class DiffusersAdapter(BaseGenerator):
                     f"{self.model_option.license_url} and authenticate with `hf auth login`."
                 ) from exc
             raise RuntimeError(f"Could not load {self.model_id}: {exc}") from exc
+
+        if self.model_key == "sdxl":
+            _cast_sdxl_vae_decode_input(self.pipe.vae, torch.float32)
 
         if hasattr(self.pipe, "enable_attention_slicing"):
             self.pipe.enable_attention_slicing()
@@ -178,6 +391,7 @@ class DiffusersAdapter(BaseGenerator):
             else self.backend
         )
         generator = torch.Generator(device=generator_device).manual_seed(seed)
+        do_classifier_free_guidance = model_guidance > 1.0
         call_args = {
             "prompt": prompt,
             "width": width,
@@ -198,6 +412,145 @@ class DiffusersAdapter(BaseGenerator):
             call_args["max_sequence_length"] = 256
         elif self.model_key == "z-image-turbo":
             call_args["max_sequence_length"] = 512
+
+        if self.model_key == "sd15":
+            tokenizer = self.pipe.tokenizer
+            text_encoder = self.pipe.text_encoder
+            max_tokens = int(text_encoder.config.max_position_embeddings) - 2
+            prompt_is_long = (
+                len(_token_ids(tokenizer, prompt)) > max_tokens
+                or (
+                    do_classifier_free_guidance
+                    and len(_token_ids(tokenizer, negative_prompt)) > max_tokens
+                )
+            )
+            if prompt_is_long:
+                execution_device = getattr(
+                    self.pipe, "_execution_device", torch.device(self.backend)
+                )
+                prompt_embeds = _encode_sd15_prompt(
+                    self.pipe, prompt, execution_device
+                )
+                call_args.pop("prompt")
+                call_args["prompt_embeds"] = prompt_embeds
+                if do_classifier_free_guidance:
+                    negative_embeds = _encode_sd15_prompt(
+                        self.pipe, negative_prompt, execution_device
+                    )
+                    target_length = max(
+                        prompt_embeds.shape[1], negative_embeds.shape[1]
+                    )
+                    call_args["prompt_embeds"] = _pad_prompt_embeddings(
+                        prompt_embeds, target_length
+                    )
+                    call_args["negative_prompt_embeds"] = _pad_prompt_embeddings(
+                        negative_embeds, target_length
+                    )
+                call_args.pop("negative_prompt", None)
+        elif self.model_key == "sdxl":
+            clip_tokenizers = [self.pipe.tokenizer, self.pipe.tokenizer_2]
+            max_tokens = min(
+                _clip_content_limit(tokenizer) for tokenizer in clip_tokenizers
+            )
+            prompt_is_long = (
+                len(_token_ids(clip_tokenizers[0], prompt)) > max_tokens
+                or len(_token_ids(clip_tokenizers[1], prompt)) > max_tokens
+                or (
+                    do_classifier_free_guidance
+                    and (
+                        len(_token_ids(clip_tokenizers[0], negative_prompt)) > max_tokens
+                        or len(_token_ids(clip_tokenizers[1], negative_prompt)) > max_tokens
+                    )
+                )
+            )
+            if prompt_is_long:
+                prompt_chunks = _split_clip_prompt(prompt, clip_tokenizers)
+                negative_chunks = (
+                    _split_clip_prompt(negative_prompt, clip_tokenizers)
+                    if do_classifier_free_guidance
+                    else []
+                )
+                positive_chunk_count = len(prompt_chunks)
+                negative_chunk_count = len(negative_chunks)
+                chunk_count = max(len(prompt_chunks), len(negative_chunks))
+                prompt_chunks.extend([""] * (chunk_count - len(prompt_chunks)))
+                negative_chunks.extend([""] * (chunk_count - len(negative_chunks)))
+                execution_device = getattr(
+                    self.pipe, "_execution_device", torch.device(self.backend)
+                )
+                encoded = self.pipe.encode_prompt(
+                    prompt=prompt_chunks,
+                    prompt_2=prompt_chunks,
+                    device=execution_device,
+                    num_images_per_prompt=1,
+                    do_classifier_free_guidance=do_classifier_free_guidance,
+                    negative_prompt=negative_chunks if do_classifier_free_guidance else None,
+                    negative_prompt_2=negative_chunks if do_classifier_free_guidance else None,
+                )
+                positive, negative, pooled, negative_pooled = encoded
+                call_args.pop("prompt")
+                call_args.pop("negative_prompt", None)
+                call_args["prompt_embeds"] = positive.reshape(
+                    1, -1, positive.shape[-1]
+                )
+                call_args["pooled_prompt_embeds"] = pooled[
+                    :positive_chunk_count
+                ].mean(dim=0, keepdim=True)
+                if do_classifier_free_guidance:
+                    call_args["negative_prompt_embeds"] = negative.reshape(
+                        1, -1, negative.shape[-1]
+                    )
+                    call_args["negative_pooled_prompt_embeds"] = negative_pooled[
+                        :negative_chunk_count
+                    ].mean(dim=0, keepdim=True)
+        elif self.model_key in {"flux-dev", "flux-schnell"}:
+            clip_prompt = _split_clip_prompt(
+                prompt, [self.pipe.tokenizer], first_only=True
+            )[0]
+            call_args["prompt"] = clip_prompt
+            call_args["prompt_2"] = prompt
+            sequence_limit = 512 if self.model_key == "flux-dev" else 256
+            call_args["max_sequence_length"] = _required_sequence_length(
+                self.pipe.tokenizer_2,
+                (prompt, negative_prompt),
+                call_args["max_sequence_length"],
+                sequence_limit,
+            )
+            if self.model_key == "flux-dev" and do_classifier_free_guidance and negative_prompt:
+                clip_negative = _split_clip_prompt(
+                    negative_prompt, [self.pipe.tokenizer], first_only=True
+                )[0]
+                call_args["negative_prompt"] = clip_negative
+                call_args["negative_prompt_2"] = negative_prompt
+        elif self.model_key == "sd35-medium":
+            clip_tokenizers = [self.pipe.tokenizer, self.pipe.tokenizer_2]
+            clip_prompt = _split_clip_prompt(
+                prompt, clip_tokenizers, first_only=True
+            )[0]
+            call_args["prompt"] = clip_prompt
+            call_args["prompt_2"] = clip_prompt
+            call_args["prompt_3"] = prompt
+            sequence_length = _required_sequence_length(
+                self.pipe.tokenizer_3,
+                (prompt, negative_prompt),
+                call_args["max_sequence_length"],
+                512,
+            )
+            call_args["max_sequence_length"] = sequence_length
+            if do_classifier_free_guidance:
+                clip_negative = _split_clip_prompt(
+                    negative_prompt, clip_tokenizers, first_only=True
+                )[0]
+                call_args["negative_prompt"] = clip_negative
+                call_args["negative_prompt_2"] = clip_negative
+                call_args["negative_prompt_3"] = negative_prompt
+        elif self.model_key == "z-image-turbo":
+            call_args["max_sequence_length"] = _required_sequence_length(
+                self.pipe.tokenizer,
+                (prompt, negative_prompt),
+                call_args["max_sequence_length"],
+                512,
+            )
 
         try:
             result = self.pipe(**call_args)

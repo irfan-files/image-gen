@@ -74,9 +74,31 @@ def test_duplicate_hash():
 
 def test_prompt_contains_constraints():
     themes = load_themes(ROOT / "themes.yaml")
-    prompt = build_prompt(themes["vintage_winter_cabin"])
+    theme = themes["vintage_winter_cabin"]
+    prompt = build_prompt(theme).lower()
+    negative = build_negative(theme).lower()
+
+    assert prompt.startswith("flat 2d full-bleed standalone illustration")
+    assert "artwork only" in prompt
+    assert "cottage off-center with clean snowy sky" in prompt
+    assert "subject balanced at the" not in prompt
     assert "no text" in prompt.lower()
-    assert "no watermark" in prompt.lower()
+    assert "framed print" in negative
+    assert "multiple framed artworks" in negative
+    assert "figurine" in negative
+
+
+def test_aquarium_prompt_requests_underwater_art_not_a_physical_tank():
+    themes = load_themes(ROOT / "themes.yaml")
+    theme = themes["aurora_underwater_fantasy"]
+    prompt = build_prompt(theme).lower()
+    negative = build_negative(theme).lower()
+
+    assert "full-bleed underwater wallpaper illustration" in prompt
+    assert "aquarium glass" not in prompt
+    assert "panoramic aquarium" not in prompt
+    assert "physical aquarium tank" in negative
+    assert "aquarium stand" in negative
 
 
 def test_pixel_art_prompt_uses_style_constraints_and_aquarium_open_center():
@@ -88,7 +110,9 @@ def test_pixel_art_prompt_uses_style_constraints_and_aquarium_open_center():
     assert "square pixels" in prompt
     assert "open swimming lane" in prompt
     assert "photorealism" in negative
-    assert len(prompt.split()) <= 60
+    assert "full-bleed underwater wallpaper illustration" in prompt
+    assert "physical aquarium tank" in negative
+    assert len(prompt.split()) <= 80
 
 
 def test_pixel_art_resize_uses_requested_pixel_grid():

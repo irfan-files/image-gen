@@ -8,7 +8,7 @@ Production-oriented local AI artwork batch generator for Etsy, Shopee, wall art,
 |---|---|---:|---|---|
 | macOS Apple Silicon | `stabilityai/stable-diffusion-xl-base-1.0` | 1536×768 | PyTorch MPS | 32 GB unified memory; try 1536, 1344, 1216, 1024; SDXL license/Rail terms must be reviewed |
 | Windows Intel Arc A530M | `runwayml/stable-diffusion-v1-5` | 512×256 to 768×384 | OpenVINO, verified XPU, or CPU | Recommended for 4 GB VRAM and all pixel-art tiers (8/16/32-bit style) |
-| Optional | `stabilityai/stable-diffusion-xl-base-1.0` | 640×320 on Arc; larger on suitable hardware | Diffusers | Layer-by-layer RAM offload; slower on 4 GB VRAM |
+| Optional | `stabilityai/stable-diffusion-xl-base-1.0` | 640×320 on Arc; larger on suitable hardware | Diffusers | FP32 VAE with layer-by-layer RAM offload; slower on 4 GB VRAM |
 | Optional | `stabilityai/stable-diffusion-3.5-medium` | 512×256 on Arc | Diffusers `StableDiffusion3Pipeline` | Stability AI Community License; below USD 1M annual revenue commercial use is permitted subject to the license. Review current terms |
 | Optional | `black-forest-labs/FLUX.1-dev` | 512×256 on Arc | Diffusers `FluxPipeline` | Non-commercial license. Do not use for Etsy/Shopee sales without a separate commercial license |
 | Optional | `black-forest-labs/FLUX.1-schnell` | 512×256 on Arc; 4 steps by default | Diffusers `FluxPipeline` | Apache 2.0. Still 12B parameters; RAM offload on a 4 GB GPU is expected to be slow |
@@ -23,6 +23,12 @@ For FLUX.1-dev, a non-empty negative prompt enables true classifier-free guidanc
 FLUX.1-schnell uses guidance scale 0, does not use negative prompts, and limits inference to 1-4 steps (4 by default). Z-Image-Turbo uses guidance scale 0 and 9 steps by default. Both settings follow the respective model cards; you can change the Z-Image-Turbo step count in the GUI or with `--steps`.
 
 Models are loaded one at a time. Diffusers, Transformers, and PyTorch XPU versions must support the selected pipeline. The install requirements need Diffusers 0.43 or newer for Z-Image-Turbo.
+
+### Long prompts and wallpaper-only output
+
+Generated prompts explicitly request a flat, full-bleed standalone artwork. Aquarium themes request the underwater scene itself, without a display frame or equipment, and their negative prompts exclude physical tanks and aquarium hardware. All themes also exclude framed-print/product mockups, staged rooms, people, figurines, and statues. These prompt constraints reduce presentation mistakes but cannot guarantee every model result; review previews before printing or listing.
+
+The app no longer relies on CLIP silently truncating long prompts at 77 tokens. SD 1.5 encodes longer text in 75-token CLIP chunks; SDXL chunks for both CLIP tokenizers. FLUX and SD 3.5 receive a short, CLIP-safe subject/style anchor and the complete positive and negative prompt through their T5 encoder. Z-Image receives the complete prompt through its own sequence encoder. The app expands sequence limits when needed, up to 512 tokens, and reports an error instead of silently cutting text beyond the model limit. FLUX.1-schnell does not use negative prompts by design. Existing generated files are unchanged; these corrections apply to new generations.
 
 ## Architecture
 
