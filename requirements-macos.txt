@@ -1,7 +1,7 @@
-torch>=2.2
+torch>=2.4
 torchvision
 diffusers>=0.43
-transformers>=4.44
+transformers>=5.17
 accelerate>=0.30
 safetensors>=0.4
 huggingface_hub>=0.23

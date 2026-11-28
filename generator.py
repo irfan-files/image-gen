@@ -15,6 +15,7 @@ from PIL import Image
 from hardware import detect_hardware, recommended_backend
 from metadata import listing_text, write_json
 from model_adapters.diffusers_adapter import DiffusersAdapter
+from model_adapters.ideogram4_adapter import Ideogram4Adapter
 from model_adapters.openvino_adapter import OpenVINOAdapter
 from model_catalog import MODEL_OPTIONS, get_model_option
 from prompt_builder import build_negative, build_prompt
@@ -63,6 +64,8 @@ class Generator:
     def create_adapter(self):
         if self.backend == "openvino":
             return OpenVINOAdapter(self.model_id, self.cache_dir, self.openvino_model_dir)
+        if self.model_key == "ideogram-4-fp8":
+            return Ideogram4Adapter(self.model_id, self.backend, self.cache_dir)
         return DiffusersAdapter(
             self.model_id, self.backend, self.cache_dir, model_key=self.model_key
         )

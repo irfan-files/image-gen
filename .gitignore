@@ -1,5 +1,6 @@
 # Python environments and bytecode
 .venv/
+.ideogram4/
 venv/
 env/
 __pycache__/

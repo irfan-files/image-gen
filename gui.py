@@ -72,7 +72,11 @@ class SeasonalArtGUI:
         self.saved_backend = data.get("backend", "xpu")
         self.saved_model = data.get("model", "sdxl" if platform.system() == "Darwin" else "sd15")
         default_steps = MODEL_OPTIONS.get(self.saved_model, MODEL_OPTIONS["sd15"]).recommended_steps
-        default_steps = default_steps if self.saved_model in {"flux-schnell", "z-image-turbo"} else 20
+        default_steps = default_steps if self.saved_model in {
+            "flux-schnell", "z-image-turbo", "flux-3-klein",
+            "flux2-klein-9b", "flux2-klein-4b", "flux2-klein-base-4b",
+            "qwen-image-2.1",
+        } else 20
         try:
             self.saved_steps = int(data.get("steps", default_steps))
         except (TypeError, ValueError):
@@ -389,6 +393,62 @@ class SeasonalArtGUI:
                 "Z-Image-Turbo hardware notice",
                 f"{model_option.commercial_note}\n\n"
                 "On an Intel Arc A530M with 4 GB VRAM, generation may be extremely slow. Continue?",
+            ):
+                return
+        elif model_key == "flux-3-klein":
+            if not messagebox.askyesno(
+                "FLUX 3 Image Klein license and hardware notice",
+                f"{model_option.commercial_note}\n\n"
+                "Accept the gated model terms and authenticate with Hugging Face before use. "
+                "The model needs substantial memory: its model card reports 31 GB peak GPU "
+                "memory without prompt upsampling, with the upsampler adding about 28 GB "
+                "on an 80 GB GPU. Continue only if your hardware and intended use are suitable.",
+            ):
+                return
+        elif model_key == "flux2-klein-9b":
+            if not messagebox.askyesno(
+                "FLUX.2 Klein 9B license and hardware notice",
+                f"{model_option.commercial_note}\n\n"
+                "Accept the gated model terms and authenticate with Hugging Face before use. "
+                "The model card reports about 29 GB of peak GPU memory. Continue only for "
+                "permitted non-commercial use on suitable hardware.",
+            ):
+                return
+        elif model_key in {"flux2-klein-4b", "flux2-klein-base-4b"}:
+            model_name = (
+                "FLUX.2 Klein 4B"
+                if model_key == "flux2-klein-4b"
+                else "FLUX.2 Klein Base 4B"
+            )
+            if not messagebox.askyesno(
+                f"{model_name} hardware notice",
+                f"{model_option.commercial_note}\n\n"
+                "The model card reports about 13 GB of peak GPU memory. On a 4 GB Intel Arc, "
+                "generation may be very slow or fail. Continue?",
+            ):
+                return
+        elif model_key == "ideogram-4-fp8":
+            if not messagebox.askyesno(
+                "Ideogram 4 FP8 license and runtime notice",
+                f"{model_option.commercial_note}\n\n"
+                "This gated model requires Hugging Face access approval and the official "
+                "ideogram4 package in a separate Python environment. The app auto-detects "
+                "the project .ideogram4 environment; IDEOGRAM4_PYTHON can select a custom path. "
+                "The FP8 runner supports CPU, CUDA, or MPS—not Intel XPU or OpenVINO. Prompts "
+                "are processed locally; hosted prompt expansion and moderation are not enabled. "
+                "Human review of every output is required. Continue only for permitted "
+                "non-commercial use on suitable hardware.",
+            ):
+                return
+        elif model_key == "qwen-image-2.1":
+            if not messagebox.askyesno(
+                "Qwen Image 2.1 license and hardware notice",
+                f"{model_option.commercial_note}\n\n"
+                "The model card reports a 7B visual-generation component and recommends "
+                "substantial memory. The app recommends 64 GB system RAM for offloading; "
+                "the detected Intel XPU has 4 GB VRAM and may be very slow or fail. "
+                "Continue only if you have the separate commercial license for any "
+                "commercial use and suitable hardware.",
             ):
                 return
 

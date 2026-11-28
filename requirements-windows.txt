@@ -8,7 +8,7 @@ pytest>=8.2
 # Intel Arc: install verified PyTorch XPU build, or the OpenVINO/Optimum stack below.
 openvino>=2024.2
 optimum-intel>=1.18
-transformers>=4.44
+transformers>=5.17
 diffusers>=0.43
 accelerate>=0.30
 safetensors>=0.4

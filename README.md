@@ -13,16 +13,26 @@ Production-oriented local AI artwork batch generator for Etsy, Shopee, wall art,
 | Optional | `black-forest-labs/FLUX.1-dev` | 512×256 on Arc | Diffusers `FluxPipeline` | Non-commercial license. Do not use for Etsy/Shopee sales without a separate commercial license |
 | Optional | `black-forest-labs/FLUX.1-schnell` | 512×256 on Arc; 4 steps by default | Diffusers `FluxPipeline` | Apache 2.0. Still 12B parameters; RAM offload on a 4 GB GPU is expected to be slow |
 | Optional | `Tongyi-MAI/Z-Image-Turbo` | 512×256 on Arc; 9 steps by default | Diffusers `ZImagePipeline` | Apache 2.0. 6B parameters; model card targets GPUs with about 16 GB VRAM, so 4 GB Arc requires slow RAM offload |
+| Optional | `black-forest-labs/flux-3-image-klein` | 512×256 on Arc; 16 steps by default | Diffusers `ModularPipeline` | Gated FLUX Kommunity License. Model card reports 31 GB peak GPU memory without prompt upsampling; its upsampler adds about 28 GB on an 80 GB GPU |
+| Optional | `black-forest-labs/FLUX.2-klein-9B` | 512×256 on Arc; 4 steps by default | Diffusers `Flux2KleinPipeline` | Gated non-commercial license; do not use for Etsy/Shopee sales. Model card reports about 29 GB VRAM and requires safety filters or manual review |
+| Optional | `black-forest-labs/FLUX.2-klein-4B` | 512×256 on Arc; 4 steps by default | Diffusers `Flux2KleinPipeline` | Apache 2.0, including commercial use. Model card reports about 13 GB VRAM; safety filters and manual review are encouraged |
+| Optional | `black-forest-labs/FLUX.2-klein-base-4B` | 512×256 on Arc; 50 steps by default | Diffusers `Flux2KleinPipeline` | Apache 2.0, including commercial use. Model card reports about 13 GB VRAM; safety filters and manual review are encouraged |
+| Optional | `ideogram-ai/ideogram-4-fp8` | 1024×1024 native; 48 steps by default | Official `ideogram4` package in an isolated Python worker | Gated non-commercial agreement; no Etsy/Shopee sales. FP8 supports CPU/CUDA/MPS, not Intel XPU/OpenVINO |
+| Optional | `Qwen/Qwen-Image-2.1` | 40 steps by default; 7B visual-generation component | Diffusers `QwenImage21Pipeline` | Qwen Research License is non-commercial; commercial output requires a separate Qwen license. App recommends 64 GB RAM for offloading |
 
-The GUI's model selector starts with SD 1.5. FLUX.1-dev and SD 3.5 Medium display license confirmations before generation. Z-Image-Turbo displays a hardware warning before generation. FLUX.1-dev requires Hugging Face model access approval and a separate commercial license for commercial product sales. The GUI cannot grant either license or access.
+The GUI's model selector starts with SD 1.5. FLUX.1-dev, SD 3.5 Medium, FLUX 3 Image Klein, and FLUX.2 Klein 9B display license confirmations before generation. Z-Image-Turbo, FLUX.2 Klein 4B, FLUX.2 Klein Base 4B, and the Klein 9B display hardware warnings before generation. FLUX.1-dev requires Hugging Face model access approval and a separate commercial license for commercial product sales. FLUX 3 Image Klein is gated and requires accepting the model terms and authenticating with Hugging Face; commercial output generation is limited to qualifying users below US$5M gross annualized revenue, subject to the full license and acceptable-use terms. FLUX.2 Klein 9B is gated, requires Hugging Face approval, is non-commercial only, and requires safety filters or manual review. Both FLUX.2 Klein 4B presets are Apache 2.0. The GUI cannot grant model access or licenses.
 
 On the current Arc A530M setup, SD 1.5 XPU generation was tested. A one-step FLUX.1-dev XPU smoke test also completed at 512×256 after applying a float32 fallback for FLUX positional embeddings, which otherwise request unsupported float64 on this PyTorch XPU device. That single denoising step took about four minutes with sequential CPU/RAM offload and classifier-free guidance, so FLUX is not practical for large batches on this hardware. FLUX.1-dev is a 12B-parameter model and recommends substantially more memory; SD 3.5 Medium also has a significantly larger memory footprint than SD 1.5. The app warns when detected system RAM is below the model's configured recommendation, but offloading cannot guarantee acceptable speed or prevent all out-of-memory errors.
 
 For FLUX.1-dev, a non-empty negative prompt enables true classifier-free guidance with `true_cfg_scale=2.0`; without a negative prompt, that extra guidance is omitted.
 
-FLUX.1-schnell uses guidance scale 0, does not use negative prompts, and limits inference to 1-4 steps (4 by default). Z-Image-Turbo uses guidance scale 0 and 9 steps by default. Both settings follow the respective model cards; you can change the Z-Image-Turbo step count in the GUI or with `--steps`.
+FLUX.1-schnell uses guidance scale 0, does not use negative prompts, and limits inference to 1-4 steps (4 by default). Z-Image-Turbo uses guidance scale 0 and 9 steps by default. FLUX 3 Image Klein uses its distilled no-guidance workflow and runs the model's prompt upsampler automatically. FLUX.2 Klein 9B and 4B default to 4 steps and guidance 1.0; Klein Base 4B defaults to 50 steps and guidance 4.0. FLUX 3 and FLUX.2 Klein models do not use the app's negative prompt. These settings follow the respective model cards; you can change steps in the GUI or with `--steps`.
 
-Models are loaded one at a time. Diffusers, Transformers, and PyTorch XPU versions must support the selected pipeline. The install requirements need Diffusers 0.43 or newer for Z-Image-Turbo.
+Models are loaded one at a time. Diffusers, Transformers, and PyTorch XPU versions must support the selected pipeline. The install requirements need Diffusers 0.43 or newer for Z-Image-Turbo and FLUX.2 Klein, and Transformers 4.57 or newer for FLUX 3 Image Klein.
+
+Ideogram 4 FP8 is intentionally isolated from the app's PyTorch environment because the official `ideogram4` package requires PyTorch 2.11 or newer and does not support Intel XPU. It uses the official 48-step quality preset by default; the generic `--scheduler` setting does not apply. The app wraps its existing positive and negative prompts in Ideogram's structured JSON caption locally; it does not call hosted magic-prompt or moderation services. This means no prompts are sent to those services, but no remote safety screening is performed either. Review every generated image manually.
+
+Qwen Image 2.1 uses `QwenImage21Pipeline`, 40 steps by default, BF16 weights where available, and sequential/model CPU offload on constrained accelerators. It requires Transformers 5.17 or newer (the Windows installer pins a compatible PyTorch XPU build separately). The model is under the Qwen Research License Agreement: commercial use requires a separate license from Qwen; the GUI asks for confirmation before commercial workflows. The model card lists a 7B visual-generation component, so the app recommends 64 GB system RAM for offloading; this is a project recommendation, not a guarantee of inference success.
 
 ### Long prompts and wallpaper-only output
 
@@ -71,13 +81,26 @@ For verified XPU, install a PyTorch build reported compatible with your Intel dr
 
 For gated model repositories, accept the model terms on Hugging Face and authenticate in the same environment with `hf auth login`. The model adapter reports a specific access error if approval or authentication is missing.
 
+#### Optional Ideogram 4 FP8 environment
+
+Ideogram 4 FP8 is governed by a non-commercial agreement; do not use it to create Etsy/Shopee listings or other commercial work. Accept the gated model terms first. Install the official package in its own environment rather than changing the app's XPU environment:
+
+```powershell
+py -3.12 -m venv .ideogram4
+.\.ideogram4\Scripts\python.exe -m pip install git+https://github.com/ideogram-oss/ideogram4.git
+.\.ideogram4\Scripts\hf.exe auth login
+.\start_gui.bat
+```
+
+The app auto-detects the interpreter at `.ideogram4\Scripts\python.exe`. If you installed the environment elsewhere, set `IDEOGRAM4_PYTHON` to its `python.exe` path before launching the GUI or CLI. The official FP8 runner supports CPU, CUDA, and MPS only; Intel XPU/OpenVINO are unsupported. Choose a supported backend in the app. CPU execution may need substantially more than the app's 32 GB RAM recommendation. The isolated worker loads `ideogram-ai/ideogram-4-fp8` once and reuses it for the batch. Hugging Face model access approval/authentication is still required. The app uses a local JSON caption wrapper and does not enable the official runner's hosted magic-prompt or Hive moderation APIs; human review is required. If the environment is missing or fails to load, the app aborts before starting the batch instead of marking every image failed.
+
 ### GUI batch generation
 
 Double-click `start_gui.bat`. It launches the GUI using the project-local `.venv\Scripts\python.exe`, and installs the small GUI YAML dependency into that same environment if it is missing. In the GUI, enter an image count for each theme; rows with a count of zero are skipped. Select a backend, resolution, inference steps, and whether to run Real-ESRGAN, then click **Start generation**.
 
 The GUI saves selected counts and settings in `gui_settings.json`. The generated batch runs sequentially and progress is shown in the GUI. A positive image count is used regardless of the row's checkbox; checkboxes are for bulk-selecting rows before using **Apply count**.
 
-Select one of the model presets at the top of the GUI: SD 1.5 (recommended for the Arc), SDXL, FLUX.1-dev, SD 3.5 Medium, FLUX.1-schnell, or Z-Image-Turbo. Selecting Schnell or Z-Image-Turbo sets the suggested step count (4 or 9); it can be adjusted as appropriate. The CLI equivalent is `--model sd15`, `--model sdxl`, `--model flux-dev`, `--model sd35-medium`, `--model flux-schnell`, or `--model z-image-turbo`.
+Select one of the model presets at the top of the GUI: SD 1.5 (recommended for the Arc), SDXL, FLUX.1-dev, SD 3.5 Medium, FLUX.1-schnell, Z-Image-Turbo, FLUX 3 Image Klein, FLUX.2 Klein 9B, FLUX.2 Klein 4B, FLUX.2 Klein Base 4B, Ideogram 4 FP8, or Qwen Image 2.1. Each preset selects its model-card step default (Schnell 4, Z-Image 9, FLUX 3 Klein 16, FLUX.2 Klein 9B/4B 4, Base 4B 50, Ideogram 4 FP8 48, Qwen Image 2.1 40); it can be adjusted as appropriate. Klein models are integrated for text-to-image generation; reference-image editing is not exposed in this batch workflow. The CLI equivalent is `--model sd15`, `--model sdxl`, `--model flux-dev`, `--model sd35-medium`, `--model flux-schnell`, `--model z-image-turbo`, `--model flux-3-klein`, `--model flux2-klein-9b`, `--model flux2-klein-4b`, `--model flux2-klein-base-4b`, `--model ideogram-4-fp8`, or `--model qwen-image-2.1`.
 
 ### Pixel-art collections and product strategy
 

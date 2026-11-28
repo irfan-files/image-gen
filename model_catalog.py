@@ -103,6 +103,98 @@ MODEL_OPTIONS = {
         minimum_ram_gb=32,
         recommended_steps=9,
     ),
+    "flux-3-klein": ModelOption(
+        key="flux-3-klein",
+        label="FLUX 3 Image Klein (gated, 16 steps)",
+        model_id="black-forest-labs/flux-3-image-klein",
+        pipeline_class="ModularPipeline",
+        license_name="FLUX Kommunity License v.1.0",
+        license_url="https://huggingface.co/black-forest-labs/flux-3-image-klein",
+        commercial_note=(
+            "The gated FLUX Kommunity License permits non-commercial use and commercial "
+            "output generation by qualifying users below US$5M gross annualized revenue, "
+            "subject to the full license and acceptable-use terms."
+        ),
+        xpu_resolution=(512, 256),
+        minimum_ram_gb=64,
+        recommended_steps=16,
+    ),
+    "flux2-klein-9b": ModelOption(
+        key="flux2-klein-9b",
+        label="FLUX.2 Klein 9B (non-commercial, 4 steps)",
+        model_id="black-forest-labs/FLUX.2-klein-9B",
+        pipeline_class="Flux2KleinPipeline",
+        license_name="FLUX Non-Commercial License",
+        license_url="https://huggingface.co/black-forest-labs/FLUX.2-klein-9B",
+        commercial_note=(
+            "Non-commercial license: do not use for Etsy/Shopee sales. Hugging Face access "
+            "approval is required, and the license requires applicable safety filters or manual review."
+        ),
+        xpu_resolution=(512, 256),
+        minimum_ram_gb=64,
+        recommended_steps=4,
+    ),
+    "flux2-klein-4b": ModelOption(
+        key="flux2-klein-4b",
+        label="FLUX.2 Klein 4B (Apache 2.0, 4 steps)",
+        model_id="black-forest-labs/FLUX.2-klein-4B",
+        pipeline_class="Flux2KleinPipeline",
+        license_name="Apache 2.0",
+        license_url="https://huggingface.co/black-forest-labs/FLUX.2-klein-4B",
+        commercial_note=(
+            "Apache 2.0 permits commercial use. Follow its terms and review generated images; "
+            "the model card encourages appropriate safety filters and manual review."
+        ),
+        xpu_resolution=(512, 256),
+        minimum_ram_gb=32,
+        recommended_steps=4,
+    ),
+    "flux2-klein-base-4b": ModelOption(
+        key="flux2-klein-base-4b",
+        label="FLUX.2 Klein Base 4B (Apache 2.0, 50 steps)",
+        model_id="black-forest-labs/FLUX.2-klein-base-4B",
+        pipeline_class="Flux2KleinPipeline",
+        license_name="Apache 2.0",
+        license_url="https://huggingface.co/black-forest-labs/FLUX.2-klein-base-4B",
+        commercial_note=(
+            "Apache 2.0 permits commercial use. Follow its terms and review generated images; "
+            "the model card encourages appropriate safety filters and manual review."
+        ),
+        xpu_resolution=(512, 256),
+        minimum_ram_gb=32,
+        recommended_steps=50,
+    ),
+    "ideogram-4-fp8": ModelOption(
+        key="ideogram-4-fp8",
+        label="Ideogram 4 FP8 (non-commercial, 48 steps)",
+        model_id="ideogram-ai/ideogram-4-fp8",
+        pipeline_class="Ideogram4Pipeline (official ideogram4 package)",
+        license_name="Ideogram Non-Commercial Model Agreement",
+        license_url="https://huggingface.co/ideogram-ai/ideogram-4-fp8",
+        commercial_note=(
+            "Non-commercial use only. Do not use generated images for Etsy/Shopee sales "
+            "or other commercial purposes. The gated model requires Hugging Face access approval."
+        ),
+        xpu_resolution=(512, 256),
+        minimum_ram_gb=32,
+        recommended_steps=48,
+    ),
+    "qwen-image-2.1": ModelOption(
+        key="qwen-image-2.1",
+        label="Qwen Image 2.1 (research license, 40 steps)",
+        model_id="Qwen/Qwen-Image-2.1",
+        pipeline_class="QwenImage21Pipeline",
+        license_name="Qwen Research License Agreement",
+        license_url="https://huggingface.co/Qwen/Qwen-Image-2.1",
+        commercial_note=(
+            "The standard license permits non-commercial use only. Commercial use requires "
+            "a separate license from Qwen; proceed with Etsy/Shopee generation only if you "
+            "hold that license."
+        ),
+        xpu_resolution=(768, 384),
+        minimum_ram_gb=64,
+        recommended_steps=40,
+    ),
 }
 
 MODEL_LABEL_TO_KEY = {option.label: key for key, option in MODEL_OPTIONS.items()}

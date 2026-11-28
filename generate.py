@@ -256,6 +256,33 @@ def main():
         print(f"LICENSE NOTICE: {model_option.commercial_note} Details: {model_option.license_url}")
     elif model_key in {"flux-schnell", "z-image-turbo"}:
         print(f"MODEL NOTICE: {model_option.commercial_note} Details: {model_option.license_url}")
+    elif model_key == "flux-3-klein":
+        print(
+            f"LICENSE AND ACCESS NOTICE: {model_option.commercial_note} "
+            f"Accept the gated terms and authenticate with Hugging Face. Details: {model_option.license_url}"
+        )
+    elif model_key == "flux2-klein-9b":
+        print(
+            f"LICENSE AND ACCESS WARNING: {model_option.commercial_note} "
+            f"Accept the gated terms and authenticate with Hugging Face. Details: {model_option.license_url}"
+        )
+    elif model_key in {"flux2-klein-4b", "flux2-klein-base-4b"}:
+        print(f"MODEL NOTICE: {model_option.commercial_note} Details: {model_option.license_url}")
+    elif model_key == "ideogram-4-fp8":
+        print(
+            f"LICENSE AND RUNTIME WARNING: {model_option.commercial_note} "
+            "The official package must be installed in a separate Python environment. "
+            "Its FP8 runner supports CPU, CUDA, or MPS, not Intel XPU/OpenVINO; no hosted "
+            "prompt-expansion or moderation services are used. Manually review every output. "
+            f"Details: {model_option.license_url}"
+        )
+    elif model_key == "qwen-image-2.1":
+        print(
+            f"LICENSE AND HARDWARE NOTICE: {model_option.commercial_note} "
+            "The pipeline requires Transformers 5.17 or newer. The model contains a 7B "
+            "visual-generation component; CPU/XPU offload may be slow and needs substantial RAM. "
+            f"Details: {model_option.license_url}"
+        )
     if args.dry_run:
         for theme, seed in jobs:
             print(f"DRY RUN {theme['id']} seed={seed}")
@@ -271,6 +298,24 @@ def main():
     rows = []
     previews = []
     start_total = time.monotonic()
+    if jobs and model_key in {"ideogram-4-fp8", "qwen-image-2.1"}:
+        try:
+            gen.ensure_adapter()
+            if gen.adapter is None:
+                raise RuntimeError("The selected model adapter was not created.")
+            gen.adapter.load()
+        except Exception as exc:
+            gen.unload()
+            model_name = (
+                "Ideogram 4"
+                if model_key == "ideogram-4-fp8"
+                else "Qwen Image 2.1"
+            )
+            raise SystemExit(
+                f"{model_name} setup failed before batch generation; "
+                f"no images were generated: {exc}"
+            ) from exc
+
     for i, (theme, seed) in enumerate(jobs, 1):
         print(f"[{i}/{len(jobs)}] Generating {theme['name']} seed={seed}")
         try:

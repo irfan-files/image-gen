@@ -9,6 +9,10 @@ from model_catalog import MODEL_OPTIONS, get_model_option
 from .base import BaseGenerator
 
 MAX_CLIP_PROMPT_CHUNKS = 4
+QWEN_IMAGE_21_MODEL_KEY = "qwen-image-2.1"
+FLUX2_KLEIN_MODEL_KEYS = frozenset({
+    "flux2-klein-9b", "flux2-klein-4b", "flux2-klein-base-4b"
+})
 
 
 def _configure_xpu_fp64_fallback(torch) -> None:
@@ -260,7 +264,9 @@ class DiffusersAdapter(BaseGenerator):
                 "and verify the Intel graphics driver, or select CPU."
             )
 
-        if self.backend == "xpu" and self.model_key in {"flux-dev", "flux-schnell"}:
+        if self.backend == "xpu" and self.model_key in {
+            "flux-dev", "flux-schnell", *FLUX2_KLEIN_MODEL_KEYS
+        }:
             _configure_xpu_fp64_fallback(torch)
 
         pipeline_class_name = self.model_option.pipeline_class
@@ -275,12 +281,23 @@ class DiffusersAdapter(BaseGenerator):
             dtype = (
                 torch.float16
                 if self.model_key in {
-                    "flux-dev", "flux-schnell", "sd35-medium", "z-image-turbo"
+                    "flux-dev", "flux-schnell", "sd35-medium", "z-image-turbo",
+                    QWEN_IMAGE_21_MODEL_KEY,
+                    *FLUX2_KLEIN_MODEL_KEYS,
                 }
                 else torch.float32
             )
         elif self.backend in ("cuda", "xpu"):
-            dtype = torch.float16
+            if self.model_key in FLUX2_KLEIN_MODEL_KEYS | {QWEN_IMAGE_21_MODEL_KEY}:
+                dtype = (
+                    torch.bfloat16
+                    if self.backend == "xpu" or torch.cuda.is_bf16_supported()
+                    else torch.float16
+                )
+            else:
+                dtype = torch.float16
+        elif self.model_key in FLUX2_KLEIN_MODEL_KEYS | {QWEN_IMAGE_21_MODEL_KEY}:
+            dtype = torch.bfloat16
         else:
             dtype = torch.float32
 
@@ -291,12 +308,56 @@ class DiffusersAdapter(BaseGenerator):
         )
 
         try:
-            self.pipe = pipeline_class.from_pretrained(
-                self.model_id,
-                cache_dir=self.cache_dir,
-                dtype=load_dtype,
-                use_safetensors=True,
-            )
+            if self.model_key == "flux-3-klein":
+                components_manager = None
+                if self.backend != "cpu":
+                    from diffusers.modular_pipelines import ComponentsManager
+
+                    components_manager = ComponentsManager()
+                    self.pipe = pipeline_class.from_pretrained(
+                        self.model_id,
+                        cache_dir=self.cache_dir,
+                        components_manager=components_manager,
+                    )
+                else:
+                    self.pipe = pipeline_class.from_pretrained(
+                        self.model_id,
+                        cache_dir=self.cache_dir,
+                    )
+                if self.backend == "mps":
+                    model_dtype = torch.float16
+                elif self.backend == "cuda" and not torch.cuda.is_bf16_supported():
+                    model_dtype = torch.float16
+                else:
+                    model_dtype = torch.bfloat16
+                self.pipe.load_components(
+                    cache_dir=self.cache_dir,
+                    dtype={"default": model_dtype, "vae": torch.float32},
+                )
+                missing_components = [
+                    name
+                    for name, spec in self.pipe._component_specs.items()
+                    if spec.default_creation_method == "from_pretrained"
+                    and spec.pretrained_model_name_or_path is not None
+                    and not hasattr(self.pipe, name)
+                ]
+                if missing_components:
+                    missing = ", ".join(sorted(missing_components))
+                    raise RuntimeError(
+                        f"Could not load required FLUX 3 Image Klein components: {missing}. "
+                        "Check model access approval, Hugging Face authentication, and network access."
+                    )
+                if components_manager is not None:
+                    components_manager.enable_auto_cpu_offload(
+                        device=torch.device(self.backend)
+                    )
+            else:
+                self.pipe = pipeline_class.from_pretrained(
+                    self.model_id,
+                    cache_dir=self.cache_dir,
+                    dtype=load_dtype,
+                    use_safetensors=True,
+                )
         except Exception as exc:
             message = str(exc)
             if "gated" in message.lower() or "401" in message or "403" in message:
@@ -314,38 +375,55 @@ class DiffusersAdapter(BaseGenerator):
         if hasattr(self.pipe, "vae") and hasattr(self.pipe.vae, "enable_slicing"):
             self.pipe.vae.enable_slicing()
 
-        if self.backend in {"xpu", "mps"}:
-            if self.model_key in {"flux-dev", "sd35-medium", "flux-schnell", "z-image-turbo"} or (
-                self.backend == "xpu" and self.model_key == "sdxl"
-            ):
-                try:
-                    self.pipe.enable_sequential_cpu_offload(device=torch.device(self.backend))
-                except Exception as exc:
-                    self.pipe = None
-                    raise RuntimeError(
-                        f"{self.model_key} needs layer-by-layer CPU/RAM offload on {self.backend}, "
-                        f"but Diffusers could not enable it: {exc}"
-                    ) from exc
-            elif self.backend == "xpu":
-                try:
-                    self.pipe.enable_model_cpu_offload(device=torch.device("xpu"))
-                except TypeError:
-                    self.pipe.enable_model_cpu_offload()
-                except Exception as exc:
-                    self.pipe = None
-                    raise RuntimeError(f"Could not enable XPU model offload: {exc}") from exc
-            else:
-                try:
-                    self.pipe.to("mps")
-                except Exception as exc:
-                    self.pipe = None
-                    raise RuntimeError(f"Could not move Diffusers pipeline to MPS: {exc}") from exc
-        elif self.backend == "cuda":
-            try:
-                self.pipe.to(self.backend)
-            except Exception as exc:
-                self.pipe = None
-                raise RuntimeError(f"Could not move Diffusers pipeline to {self.backend}: {exc}") from exc
+        if self.model_key != "flux-3-klein":
+            if self.backend in {"xpu", "mps"}:
+                if self.model_key in {
+                    "flux-dev", "sd35-medium", "flux-schnell", "z-image-turbo",
+                    QWEN_IMAGE_21_MODEL_KEY,
+                    *FLUX2_KLEIN_MODEL_KEYS,
+                } or (
+                    self.backend == "xpu" and self.model_key == "sdxl"
+                ):
+                    try:
+                        self.pipe.enable_sequential_cpu_offload(device=torch.device(self.backend))
+                    except Exception as exc:
+                        self.pipe = None
+                        raise RuntimeError(
+                            f"{self.model_key} needs layer-by-layer CPU/RAM offload on {self.backend}, "
+                            f"but Diffusers could not enable it: {exc}"
+                        ) from exc
+                elif self.backend == "xpu":
+                    try:
+                        self.pipe.enable_model_cpu_offload(device=torch.device("xpu"))
+                    except TypeError:
+                        self.pipe.enable_model_cpu_offload()
+                    except Exception as exc:
+                        self.pipe = None
+                        raise RuntimeError(f"Could not enable XPU model offload: {exc}") from exc
+                else:
+                    try:
+                        self.pipe.to("mps")
+                    except Exception as exc:
+                        self.pipe = None
+                        raise RuntimeError(f"Could not move Diffusers pipeline to MPS: {exc}") from exc
+            elif self.backend == "cuda":
+                if self.model_key in FLUX2_KLEIN_MODEL_KEYS | {QWEN_IMAGE_21_MODEL_KEY}:
+                    try:
+                        self.pipe.enable_model_cpu_offload(device=torch.device("cuda"))
+                    except Exception as exc:
+                        self.pipe = None
+                        raise RuntimeError(
+                            f"{self.model_key} needs model CPU offload on CUDA, "
+                            f"but Diffusers could not enable it: {exc}"
+                        ) from exc
+                else:
+                    try:
+                        self.pipe.to(self.backend)
+                    except Exception as exc:
+                        self.pipe = None
+                        raise RuntimeError(
+                            f"Could not move Diffusers pipeline to {self.backend}: {exc}"
+                        ) from exc
 
         self.loaded = True
 
@@ -372,7 +450,11 @@ class DiffusersAdapter(BaseGenerator):
 
             self.pipe.scheduler = DPMSolverMultistepScheduler.from_config(self.pipe.scheduler.config)
 
-        model_guidance = 0.0 if self.model_key in {"flux-schnell", "z-image-turbo"} else guidance
+        model_guidance = (
+            0.0
+            if self.model_key in {"flux-schnell", "z-image-turbo", "flux-3-klein"}
+            else guidance
+        )
         if model_guidance is None:
             model_guidance = {
                 "sd15": 7.5,
@@ -381,12 +463,21 @@ class DiffusersAdapter(BaseGenerator):
                 "sd35-medium": 4.5,
                 "flux-schnell": 0.0,
                 "z-image-turbo": 0.0,
+                "flux-3-klein": 0.0,
+                "flux2-klein-9b": 1.0,
+                "flux2-klein-4b": 1.0,
+                "flux2-klein-base-4b": 4.0,
+                QWEN_IMAGE_21_MODEL_KEY: 1.0,
             }[self.model_key]
 
         # CPU generators work with sequential offload and avoid accelerator generator mismatches.
         generator_device = (
             "cpu"
-            if self.model_key in {"flux-dev", "sd35-medium", "flux-schnell", "z-image-turbo"}
+            if self.model_key in {
+                "flux-dev", "sd35-medium", "flux-schnell", "z-image-turbo", "flux-3-klein",
+                QWEN_IMAGE_21_MODEL_KEY,
+                *FLUX2_KLEIN_MODEL_KEYS,
+            }
             and self.backend in {"xpu", "mps"}
             else self.backend
         )
@@ -400,7 +491,9 @@ class DiffusersAdapter(BaseGenerator):
             "guidance_scale": model_guidance,
             "generator": generator,
         }
-        if self.model_key not in {"flux-schnell", "z-image-turbo"}:
+        if self.model_key not in {
+            "flux-schnell", "z-image-turbo", "flux-3-klein", *FLUX2_KLEIN_MODEL_KEYS
+        }:
             call_args["negative_prompt"] = negative_prompt
         if self.model_key == "flux-dev":
             call_args["max_sequence_length"] = 512
@@ -412,6 +505,14 @@ class DiffusersAdapter(BaseGenerator):
             call_args["max_sequence_length"] = 256
         elif self.model_key == "z-image-turbo":
             call_args["max_sequence_length"] = 512
+        elif self.model_key == "flux-3-klein":
+            call_args.pop("guidance_scale")
+            call_args["output"] = "images"
+        elif self.model_key == QWEN_IMAGE_21_MODEL_KEY:
+            call_args.pop("guidance_scale")
+            call_args["true_cfg_scale"] = model_guidance
+            if model_guidance <= 1.0:
+                call_args.pop("negative_prompt", None)
 
         if self.model_key == "sd15":
             tokenizer = self.pipe.tokenizer
@@ -562,6 +663,8 @@ class DiffusersAdapter(BaseGenerator):
         gc.collect()
         if self.backend in ("mps", "cuda", "xpu"):
             getattr(torch, self.backend).empty_cache()
+        if self.model_key == "flux-3-klein":
+            return result[0].convert("RGB")
         return result.images[0].convert("RGB")
 
     def unload(self) -> None:
